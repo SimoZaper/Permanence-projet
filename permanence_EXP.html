@@ -935,9 +935,10 @@ function getDutyAgentIdx(cycleIdx, dateISO, agents, recupMap) {
       return idx;
     }
   }
-  // All unavailable — fallback to cycleIdx. Notify user.
-  console.warn('[Planning] All agents unavailable on ' + dateISO + ', falling back to cycle position ' + cycleIdx);
-  showToast('⚠️ Tous les agents indisponibles le ' + dateISO + ' — vérifiez les congés/récupérations', 'warning');
+  // All unavailable — fallback to cycleIdx.
+  // Agent at cycleIdx will be assigned even though marked unavailable; admin should review.
+  console.warn('[Planning] All agents unavailable on ' + dateISO + ', assigning agent at index ' + cycleIdx + ' despite unavailability');
+  showToast('⚠️ Tous les agents indisponibles le ' + dateISO + ' — l\'agent en tête de liste est assigné par défaut. Veuillez corriger les congés/récupérations.', 'warning');
   return cycleIdx;
 }
 
@@ -1757,7 +1758,7 @@ function confirmQuickEntry() {
     // If multiple, we handle them separately
     if (names.length > 1) {
       // Add extra rows or mark as multi
-      _prevToursPage.rows[_quickEntryRow].agentNom = names.join('||');
+      _prevToursPage.rows[_quickEntryRow].agentNom = names.join('\x1F');
     }
   }
   closeQuickModal();
@@ -1773,8 +1774,8 @@ function validateAndGenerate() {
   if (rows) {
     rows.forEach(r => {
       if (!r.dateISO || !r.agentNom) return;
-      // Handle multi-agent (joined with '||' delimiter)
-      const names = r.agentNom.includes('||') ? r.agentNom.split('||') : [r.agentNom];
+      // Handle multi-agent (joined with unit-separator \x1F)
+      const names = r.agentNom.includes('\x1F') ? r.agentNom.split('\x1F') : [r.agentNom];
       names.forEach(nom => {
         const ag = getAgentByName(nom.trim());
         if (ag) prevToursData.push({ dateISO: r.dateISO, agentNom: ag.nom, matricule: ag.matricule, obs: r.obs || '' });
@@ -2365,7 +2366,7 @@ function saveEchange() {
     addLog('echange', date, { agents: old }, { agents: entry.agents }, motif);
   }
 
-  const newId = 'e' + Date.now() + Math.random().toString(36).slice(2, 6);
+  const newId = nextId(STATE.echanges.map(e => ({ id: typeof e.id === 'number' ? e.id : parseInt(e.id.replace(/\D/g,'')) || 0 })));
   STATE.echanges.push({
     id: newId, date, officiel, remplacant, motif,
     saisiPar: STATE.currentUser.login,
@@ -2780,8 +2781,8 @@ function confirmReset() {
 // ════════════════════════════════════════════════════════════
 
 function exportPDF() {
-  const { jsPDF } = window.jspdf;
-  if (!jsPDF) { showToast('jsPDF non disponible', 'error'); return; }
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) { showToast('jsPDF non disponible — vérifiez votre connexion internet', 'error'); return; }
   showToast('Génération PDF...', 'info');
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -2957,8 +2958,8 @@ function exportYearExcel() {
 function exportYearPDF() {
   const yearSel = document.querySelector('[onchange*="renderAnnualPlan"]');
   const year = yearSel ? yearSel.value : todayISO().substring(0,4);
-  const { jsPDF } = window.jspdf;
-  if (!jsPDF) { showToast('jsPDF non disponible', 'error'); return; }
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) { showToast('jsPDF non disponible — vérifiez votre connexion internet', 'error'); return; }
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
   doc.setFillColor(27, 42, 74);
