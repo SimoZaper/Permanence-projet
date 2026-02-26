@@ -935,8 +935,9 @@ function getDutyAgentIdx(cycleIdx, dateISO, agents, recupMap) {
       return idx;
     }
   }
-  // All unavailable — fallback to cycleIdx. Log this edge case for debugging.
+  // All unavailable — fallback to cycleIdx. Notify user.
   console.warn('[Planning] All agents unavailable on ' + dateISO + ', falling back to cycle position ' + cycleIdx);
+  showToast('⚠️ Tous les agents indisponibles le ' + dateISO + ' — vérifiez les congés/récupérations', 'warning');
   return cycleIdx;
 }
 
@@ -1756,7 +1757,7 @@ function confirmQuickEntry() {
     // If multiple, we handle them separately
     if (names.length > 1) {
       // Add extra rows or mark as multi
-      _prevToursPage.rows[_quickEntryRow].agentNom = names.join('+');
+      _prevToursPage.rows[_quickEntryRow].agentNom = names.join('||');
     }
   }
   closeQuickModal();
@@ -1772,8 +1773,8 @@ function validateAndGenerate() {
   if (rows) {
     rows.forEach(r => {
       if (!r.dateISO || !r.agentNom) return;
-      // Handle multi-agent (joined with +)
-      const names = r.agentNom.includes('+') ? r.agentNom.split('+') : [r.agentNom];
+      // Handle multi-agent (joined with '||' delimiter)
+      const names = r.agentNom.includes('||') ? r.agentNom.split('||') : [r.agentNom];
       names.forEach(nom => {
         const ag = getAgentByName(nom.trim());
         if (ag) prevToursData.push({ dateISO: r.dateISO, agentNom: ag.nom, matricule: ag.matricule, obs: r.obs || '' });
@@ -2364,7 +2365,7 @@ function saveEchange() {
     addLog('echange', date, { agents: old }, { agents: entry.agents }, motif);
   }
 
-  const newId = 'e' + Date.now();
+  const newId = 'e' + Date.now() + Math.random().toString(36).slice(2, 6);
   STATE.echanges.push({
     id: newId, date, officiel, remplacant, motif,
     saisiPar: STATE.currentUser.login,
