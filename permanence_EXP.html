@@ -278,6 +278,10 @@ textarea.form-control{resize:vertical;min-height:70px}
 .prev-tours-table th{background:var(--primary);color:var(--white);padding:.6rem .9rem;text-align:left;font-size:.82rem}
 .prev-tours-table td{padding:.55rem .9rem;border-bottom:1px solid var(--border-color);vertical-align:middle}
 .prev-tours-table tr:hover td{background:var(--light)}
+.prev-agent-badges{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
+.prev-agent-badge{display:inline-flex;align-items:center;gap:.25rem;background:var(--primary);color:var(--white);border-radius:20px;padding:.15rem .55rem;font-size:.75rem;font-weight:600}
+.prev-agent-badge .remove-badge{cursor:pointer;opacity:.7;font-size:.85rem;line-height:1;margin-left:.1rem}
+.prev-agent-badge .remove-badge:hover{opacity:1}
 .quick-agents{display:flex;flex-wrap:wrap;gap:.5rem;padding:.8rem}
 .quick-agent-btn{padding:.5rem 1rem;border:2px solid var(--border-color);border-radius:var(--radius);background:var(--bg-card);cursor:pointer;font-size:.85rem;font-weight:600;transition:var(--transition)}
 .quick-agent-btn:hover{border-color:var(--primary);color:var(--primary)}
@@ -508,6 +512,24 @@ function migratePassword(stored) {
   return stored;
 }
 
+// Migrate prevTours from old flat format [{dateISO, agentNom, matricule, obs}]
+// to new grouped format [{dateISO, agents:[{nom, matricule, officiel}], obs}]
+function migratePrevTours(arr) {
+  if (!arr || !arr.length) return arr || [];
+  // Detect old format: first entry has agentNom but no agents array
+  const needsMigration = arr.some(r => r.agentNom && !Array.isArray(r.agents));
+  if (!needsMigration) return arr;
+  const byDate = {};
+  arr.forEach(r => {
+    if (!r.dateISO) return;
+    if (!byDate[r.dateISO]) byDate[r.dateISO] = { dateISO: r.dateISO, agents: [], obs: r.obs || '' };
+    if (r.agentNom) {
+      byDate[r.dateISO].agents.push({ nom: r.agentNom, matricule: r.matricule || 0, officiel: true });
+    }
+  });
+  return Object.values(byDate).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+}
+
 const AGENTS_INIT = [
   { id:1,  nom:"Tbeur",    matricule:46881, actif:true, photo:null },
   { id:2,  nom:"Bennaji",  matricule:51220, actif:true, photo:null },
@@ -719,7 +741,7 @@ function loadState() {
     STATE.echanges = data.echanges || [];
     STATE.logs = data.logs || [];
     STATE.connexions = data.connexions || [];
-    STATE.prevTours = data.prevTours || [];
+    STATE.prevTours = migratePrevTours(data.prevTours || []);
     STATE.settings = Object.assign({
       mode:'CONTINU', modeChangedDate:null, alertThresholdDays: DEFAULT_ALERT_THRESHOLD, historyDays:16,
       cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextGenDate:null
@@ -853,6 +875,9 @@ function getMonthKey(iso) { return iso.substring(0,7); }
 // ════════════════════════════════════════════════════════════
 // AGENT UTILITIES
 // ════════════════════════════════════════════════════════════
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function getActiveSorted() {
   return STATE.agents.filter(a => a.actif).sort((a,b) => a.matricule - b.matricule);
 }
@@ -1006,12 +1031,25 @@ function generatePlanning(startISO, daysCount, cycleState, agents) {
 }
 
 // Calculate cycle state from prevTours array
-// prevTours: [{dateISO, agentNom, matricule}]
+// prevTours: new format [{dateISO, agents:[{nom,matricule}], obs}]
+//         or old flat format [{dateISO, agentNom, matricule}] (for backward compat)
 // Returns { cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO }
 function calcCycleFromPrev(prevTours, agents, mode) {
   if (!prevTours.length) return { cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextStartISO: todayISO() };
-  const sorted = [...prevTours].sort((a,b) => a.dateISO.localeCompare(b.dateISO));
   const n = agents.length;
+
+  // Normalize to flat format: [{dateISO, agentNom, matricule}]
+  const flat = [];
+  prevTours.forEach(r => {
+    if (Array.isArray(r.agents)) {
+      r.agents.forEach(a => flat.push({ dateISO: r.dateISO, agentNom: a.nom, matricule: a.matricule || 0 }));
+    } else if (r.agentNom) {
+      flat.push({ dateISO: r.dateISO, agentNom: r.agentNom, matricule: r.matricule || 0 });
+    }
+  });
+  if (!flat.length) return { cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextStartISO: todayISO() };
+
+  const sorted = flat.sort((a,b) => a.dateISO.localeCompare(b.dateISO));
 
   // For each day in prevTours, determine what the next cycle index should be
   // Group by date to handle doubles (R06)
@@ -1072,27 +1110,44 @@ function buildFullPlanning(prevToursRows, agents, mode) {
   if (!sorted.length) return [];
 
   // Convert prevTours rows to planning entries
+  // Support both new format [{dateISO, agents:[{nom,matricule,officiel}], obs}]
+  // and old flat format [{dateISO, agentNom, matricule, obs}]
   const prevEntries = [];
   const byDate = {};
   prevToursRows.forEach(r => {
-    if (!r.dateISO || !r.agentNom) return;
+    if (!r.dateISO) return;
     if (!byDate[r.dateISO]) byDate[r.dateISO] = [];
-    const agent = getAgentByName(r.agentNom);
-    byDate[r.dateISO].push({
-      nom: r.agentNom,
-      matricule: agent ? agent.matricule : (r.matricule || 0),
-      officiel: true,
-      remplacePar: null,
-      motifEchange: ''
-    });
+    if (Array.isArray(r.agents)) {
+      r.agents.forEach(a => {
+        const agentObj = getAgentByName(a.nom);
+        byDate[r.dateISO].push({
+          nom: a.nom,
+          matricule: agentObj ? agentObj.matricule : (a.matricule || 0),
+          officiel: a.officiel !== false,
+          remplacePar: null,
+          motifEchange: ''
+        });
+      });
+    } else if (r.agentNom) {
+      const agentObj = getAgentByName(r.agentNom);
+      byDate[r.dateISO].push({
+        nom: r.agentNom,
+        matricule: agentObj ? agentObj.matricule : (r.matricule || 0),
+        officiel: true,
+        remplacePar: null,
+        motifEchange: ''
+      });
+    }
   });
   Object.keys(byDate).sort().forEach(dateISO => {
+    if (!byDate[dateISO].length) return;
     const dow = dowOf(dateISO);
+    const obs = (prevToursRows.find(r => r.dateISO === dateISO) || {}).obs || '';
     prevEntries.push({
       dateISO, date: formatDate(dateISO),
       jour: JOURS_FR[dow], jourAr: JOURS_AR[dow], dow,
       agents: byDate[dateISO],
-      obs: '', obsAr: '', isWeekend: isWeekend(dateISO),
+      obs, obsAr: '', isWeekend: isWeekend(dateISO),
       isPrev: true, modified: false, modifiedBy: '', modifMotif: '', modifDate: ''
     });
   });
@@ -1119,9 +1174,16 @@ function rebuildFrom(fromISO) {
   // Keep entries before fromISO
   const before = STATE.planning.filter(e => e.dateISO < fromISO);
 
-  // Find cycle state just before fromISO
+  // Find cycle state just before fromISO — flatten to [{dateISO, agentNom, matricule}]
   const prevForCalc = [];
-  STATE.prevTours.forEach(r => { if (r.dateISO < fromISO) prevForCalc.push(r); });
+  STATE.prevTours.forEach(r => {
+    if (r.dateISO >= fromISO) return;
+    if (Array.isArray(r.agents)) {
+      r.agents.forEach(a => prevForCalc.push({ dateISO: r.dateISO, agentNom: a.nom, matricule: a.matricule || 0 }));
+    } else if (r.agentNom) {
+      prevForCalc.push({ dateISO: r.dateISO, agentNom: r.agentNom, matricule: r.matricule || 0 });
+    }
+  });
   before.forEach(e => {
     if (e.isPrev || e.dateISO < fromISO) {
       e.agents.filter(a => a.officiel).forEach(a => {
@@ -1610,7 +1672,7 @@ function createPrevGrid() {
     const existing = STATE.prevTours.find(r => r.dateISO === cur);
     rows.push({
       dateISO: cur,
-      agentNom: existing ? existing.agentNom : '',
+      agents: existing ? (existing.agents || []).map(a => a.nom) : [],
       obs: existing ? (existing.obs || '') : ''
     });
     cur = addDays(cur, 1);
@@ -1627,7 +1689,7 @@ function loadExistingPrevTours() {
   if (sorted.length) {
     _prevToursPage.start = sorted[0].dateISO;
     _prevToursPage.end = sorted[sorted.length-1].dateISO;
-    _prevToursPage.rows = sorted.map(r => ({ dateISO: r.dateISO, agentNom: r.agentNom, obs: r.obs || '' }));
+    _prevToursPage.rows = sorted.map(r => ({ dateISO: r.dateISO, agents: (r.agents || []).map(a => a.nom), obs: r.obs || '' }));
     renderTab2();
   }
 }
@@ -1637,7 +1699,7 @@ function renderPrevToursGrid() {
   const rows = _prevToursPage.rows;
   const counters = {};
   agents.forEach(a => { counters[a.nom] = 0; });
-  rows.forEach(r => { if (r.agentNom && counters[r.agentNom] !== undefined) counters[r.agentNom]++; });
+  rows.forEach(r => { (r.agents || []).forEach(nom => { if (nom && counters[nom] !== undefined) counters[nom]++; }); });
 
   let html = '<div class="card"><div class="card-header"><span class="card-title">Grille des tours précédents (' + rows.length + ' jours)</span>';
   if (isAdmin()) {
@@ -1648,32 +1710,36 @@ function renderPrevToursGrid() {
   }
   html += '</div><div class="card-body" style="padding:0">';
   html += '<div class="table-container"><table class="prev-tours-table"><thead><tr>';
-  html += '<th>#</th><th>Date</th><th>Jour</th><th>Agent officiel</th><th>Observation</th>';
-  if (isAdmin()) html += '<th>⚡</th><th>✕</th>';
+  html += '<th>#</th><th>Date</th><th>Jour</th><th>Agent(s)</th><th>Observation</th>';
+  if (isAdmin()) html += '<th>✕</th>';
   html += '</tr></thead><tbody id="prevToursBody">';
 
   rows.forEach((row, idx) => {
     const dow = dowOf(row.dateISO);
     const isWE = isWeekend(row.dateISO);
+    const rowAgents = row.agents || [];
     html += '<tr class="' + (isWE ? 'weekend-row' : '') + '" id="prevRow_' + idx + '">';
     html += '<td>' + (idx+1) + '</td>';
     html += '<td><strong>' + formatDate(row.dateISO) + '</strong></td>';
     html += '<td>' + JOURS_FR[dow] + '</td>';
     html += '<td>';
+    // Display current agents as badges
+    html += '<div class="prev-agent-badges">';
+    rowAgents.forEach((nom, agentIdx) => {
+      if (!nom) return;
+      if (isAdmin()) {
+        html += '<span class="prev-agent-badge">' + escHtml(nom) + '<span class="remove-badge" onclick="removePrevRowAgent(' + idx + ',' + agentIdx + ')">×</span></span>';
+      } else {
+        html += '<span class="prev-agent-badge">' + escHtml(nom) + '</span>';
+      }
+    });
     if (isAdmin()) {
-      html += '<select class="form-control" style="padding:.3rem" onchange="setPrevAgent('+idx+',this.value)">';
-      html += '<option value="">— Sélectionner —</option>';
-      agents.forEach(a => {
-        html += '<option value="' + a.nom + '"' + (row.agentNom === a.nom ? ' selected' : '') + '>' + a.nom + ' (' + a.matricule + ')</option>';
-      });
-      html += '</select>';
-    } else {
-      html += row.agentNom || '—';
+      html += '<button class="btn btn-sm btn-outline" style="padding:.15rem .5rem;font-size:.75rem" onclick="openQuickEntry(' + idx + ',\'' + row.dateISO + '\')">⚡ ' + (rowAgents.length ? 'Modifier' : 'Ajouter') + '</button>';
     }
+    html += '</div>';
     html += '</td>';
     html += '<td><input class="form-control" style="padding:.3rem" placeholder="Observation..." value="' + (row.obs||'') + '" oninput="setPrevObs('+idx+',this.value)"' + (isAdmin() ? '' : ' disabled') + '></td>';
     if (isAdmin()) {
-      html += '<td><button class="btn btn-sm btn-outline" onclick="openQuickEntry(' + idx + ',\'' + row.dateISO + '\')">⚡</button></td>';
       html += '<td><button class="btn btn-sm btn-danger" onclick="clearPrevRow(' + idx + ')">✕</button></td>';
     }
     html += '</tr>';
@@ -1692,7 +1758,15 @@ function renderPrevToursGrid() {
 
 function setPrevAgent(idx, val) {
   if (_prevToursPage.rows[idx] !== undefined) {
-    _prevToursPage.rows[idx].agentNom = val;
+    // Legacy: set single agent (used by autoFill)
+    _prevToursPage.rows[idx].agents = val ? [val] : [];
+  }
+}
+function removePrevRowAgent(rowIdx, agentIdx) {
+  const row = _prevToursPage.rows[rowIdx];
+  if (row && row.agents) {
+    row.agents.splice(agentIdx, 1);
+    renderTab2();
   }
 }
 function setPrevObs(idx, val) {
@@ -1702,7 +1776,7 @@ function setPrevObs(idx, val) {
 }
 function clearPrevRow(idx) {
   if (_prevToursPage.rows[idx] !== undefined) {
-    _prevToursPage.rows[idx].agentNom = '';
+    _prevToursPage.rows[idx].agents = [];
     _prevToursPage.rows[idx].obs = '';
     renderTab2();
   }
@@ -1713,12 +1787,10 @@ function autoFillPrevTours() {
   if (!agents.length) return;
   let idx = 0;
   _prevToursPage.rows.forEach(row => {
-    if (!row.agentNom) {
-      row.agentNom = agents[idx % agents.length].nom;
-      idx++;
-    } else {
-      idx++;
+    if (!row.agents || !row.agents.length) {
+      row.agents = [agents[idx % agents.length].nom];
     }
+    idx++;
   });
   renderTab2();
 }
@@ -1727,14 +1799,14 @@ function openQuickEntry(rowIdx, dateISO) {
   _quickEntryDate = dateISO;
   _quickEntryRow = rowIdx;
   const agents = getActiveSorted();
-  const current = _prevToursPage.rows[rowIdx] ? _prevToursPage.rows[rowIdx].agentNom : '';
+  const currentAgents = _prevToursPage.rows[rowIdx] ? (_prevToursPage.rows[rowIdx].agents || []) : [];
 
   let html = '<p class="mb-2">Date: <strong>' + formatDate(dateISO) + ' — ' + jourFR(dateISO) + '</strong></p>';
   html += '<p class="mb-1">Sélectionner le(s) agent(s) :</p>';
   html += '<div class="quick-agents">';
   agents.forEach(a => {
-    const isSelected = current === a.nom;
-    html += '<button class="quick-agent-btn' + (isSelected ? ' selected' : '') + '" data-agent="' + a.nom + '" onclick="toggleQuickAgent(this)">' + a.nom + '<br><small>' + a.matricule + '</small></button>';
+    const isSelected = currentAgents.includes(a.nom);
+    html += '<button class="quick-agent-btn' + (isSelected ? ' selected' : '') + '" data-agent="' + escHtml(a.nom) + '" onclick="toggleQuickAgent(this)">' + escHtml(a.nom) + '<br><small>' + a.matricule + '</small></button>';
   });
   html += '</div>';
 
@@ -1753,13 +1825,7 @@ function confirmQuickEntry() {
   if (!names.length) { showToast('Sélectionnez au moins un agent', 'error'); return; }
 
   if (_quickEntryRow !== null && _prevToursPage.rows[_quickEntryRow]) {
-    // For simplicity, use first selected agent as primary
-    _prevToursPage.rows[_quickEntryRow].agentNom = names[0];
-    // If multiple, we handle them separately
-    if (names.length > 1) {
-      // Add extra rows or mark as multi
-      _prevToursPage.rows[_quickEntryRow].agentNom = names.join('\x1F');
-    }
+    _prevToursPage.rows[_quickEntryRow].agents = names;
   }
   closeQuickModal();
   renderTab2();
@@ -1769,17 +1835,18 @@ function validateAndGenerate() {
   if (!isAdmin()) { showToast('Accès refusé', 'error'); return; }
   const rows = _prevToursPage.rows.length > 0 ? _prevToursPage.rows : null;
 
-  // Collect prev tours from grid
+  // Collect prev tours from grid — produce new format [{dateISO, agents:[{nom,matricule,officiel}], obs}]
   let prevToursData = [];
   if (rows) {
     rows.forEach(r => {
-      if (!r.dateISO || !r.agentNom) return;
-      // Handle multi-agent (joined with unit-separator \x1F)
-      const names = r.agentNom.includes('\x1F') ? r.agentNom.split('\x1F') : [r.agentNom];
-      names.forEach(nom => {
+      if (!r.dateISO || !r.agents || !r.agents.length) return;
+      const agentObjs = r.agents.map(nom => {
         const ag = getAgentByName(nom.trim());
-        if (ag) prevToursData.push({ dateISO: r.dateISO, agentNom: ag.nom, matricule: ag.matricule, obs: r.obs || '' });
-      });
+        return ag ? { nom: ag.nom, matricule: ag.matricule, officiel: true } : null;
+      }).filter(Boolean);
+      if (agentObjs.length) {
+        prevToursData.push({ dateISO: r.dateISO, agents: agentObjs, obs: r.obs || '' });
+      }
     });
   } else if (STATE.prevTours.length) {
     prevToursData = STATE.prevTours;
@@ -3064,7 +3131,7 @@ function importJSONFile(input) {
       if (data.repos) STATE.repos = data.repos;
       if (data.echanges) STATE.echanges = data.echanges;
       if (data.logs) STATE.logs = data.logs;
-      if (data.prevTours) STATE.prevTours = data.prevTours;
+      if (data.prevTours) STATE.prevTours = migratePrevTours(data.prevTours);
       if (data.settings) STATE.settings = { ...STATE.settings, ...data.settings };
       if (data.users) STATE.users = data.users;
       saveState();
