@@ -1105,11 +1105,64 @@ function calcCycleFromPrev(prevTours, agents, mode) {
 }
 
 // ════════════════════════════════════════════════════════════
+// Build rotation cycle from prevTours last-appearance order
+// prevTours: new format [{dateISO, agents:[{nom,matricule}], obs}]
+// Returns ordered agents array based on each agent's LAST appearance
+// Multiple agents on same day: sorted by matricule DESCENDING (highest first)
+// ════════════════════════════════════════════════════════════
+function buildCycleFromPrevTours(prevTours) {
+  if (!prevTours || !prevTours.length) return [];
+
+  // Normalize to [{dateISO, agents:[{nom,matricule}]}] handling both formats
+  const normalized = [];
+  prevTours.forEach(r => {
+    if (!r.dateISO) return;
+    if (Array.isArray(r.agents)) {
+      normalized.push({ dateISO: r.dateISO, agents: r.agents });
+    } else if (r.agentNom) {
+      normalized.push({ dateISO: r.dateISO, agents: [{ nom: r.agentNom, matricule: r.matricule || 0 }] });
+    }
+  });
+  const chronological = normalized.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+
+  // STEP 1: Find LAST appearance date of each agent
+  const lastAppearance = {};
+  chronological.forEach(tour => {
+    (tour.agents || []).forEach(agent => {
+      if (agent.nom) lastAppearance[agent.nom] = tour.dateISO;
+    });
+  });
+
+  // STEP 2: Build cycle chronologically, only adding agents at their LAST appearance
+  const cycle = [];
+  const processed = new Set();
+  chronological.forEach(tour => {
+    // Sort agents by matricule DESCENDING (highest matricule first)
+    const agents = (tour.agents || []).slice().sort((a, b) => (b.matricule || 0) - (a.matricule || 0));
+    agents.forEach(agent => {
+      if (agent.nom && lastAppearance[agent.nom] === tour.dateISO && !processed.has(agent.nom)) {
+        cycle.push({ nom: agent.nom, matricule: agent.matricule || 0 });
+        processed.add(agent.nom);
+      }
+    });
+  });
+
+  return cycle;
+}
+
+// ════════════════════════════════════════════════════════════
 // PLANNING MERGE: combine prevTours + generated future
 // ════════════════════════════════════════════════════════════
 function buildFullPlanning(prevToursRows, agents, mode) {
   const sorted = getActiveSorted();
   if (!sorted.length) return [];
+
+  // Build rotation cycle from prevTours (respects last-appearance order)
+  const builtCycle = buildCycleFromPrevTours(prevToursRows);
+  // Append any active agents not yet present in the built cycle
+  const cycleNames = new Set(builtCycle.map(a => a.nom));
+  const cycleAgents = [...builtCycle, ...sorted.filter(a => !cycleNames.has(a.nom))];
+  const agentsForPlan = cycleAgents.length > 0 ? cycleAgents : sorted;
 
   // Convert prevTours rows to planning entries
   // Support both new format [{dateISO, agents:[{nom,matricule,officiel}], obs}]
@@ -1155,15 +1208,15 @@ function buildFullPlanning(prevToursRows, agents, mode) {
   });
   prevEntries.sort((a,b) => a.dateISO.localeCompare(b.dateISO));
 
-  // Calc cycle state
+  // Calc cycle state using built cycle order
   const { cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO } = calcCycleFromPrev(
-    prevToursRows, sorted, mode
+    prevToursRows, agentsForPlan, mode
   );
 
-  // Generate 1 year from nextStartISO
+  // Generate 1 year from nextStartISO using built cycle order
   const futureEntries = generatePlanning(nextStartISO, 365, {
     mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
-  }, sorted);
+  }, agentsForPlan);
 
   return [...prevEntries, ...futureEntries];
 }
