@@ -125,7 +125,7 @@ const sortedAbsences = computed(() =>
               <td><strong>{{ agentName(abs.agentId) }}</strong></td>
               <td><span class="badge badge-motif">{{ abs.motif }}</span></td>
               <td>{{ formatDate(abs.dateDebut) }}</td>
-              <!-- YYYY-MM-DD string comparison is lexicographically equivalent to date comparison -->
+              <!-- Les dates YYYY-MM-DD sont comparées lexicographiquement — ce qui équivaut à une comparaison chronologique -->
               <td>{{ formatDate(abs.dateFin) }}</td>
               <td>{{ formatDate(abs.dateRetourActif) }}</td>
               <td>{{ formatDate(abs.dateIntegrationPermanences) }}</td>

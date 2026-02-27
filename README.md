@@ -1,38 +1,24 @@
-# .
+# Permanence-projet
 
-This template should help get you started developing with Vue 3 in Vite.
+Application de gestion de permanence — gestion des agents, absences/congés et planning des permanences.
 
-## Recommended IDE Setup
+## Fonctionnalités
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- **🏠 Accueil** : Vue d'ensemble avec les agents actifs et la liste des agents en congé/absence
+- **👥 Agents** : Gestion CRUD des agents avec statut ACTIF/INACTIF automatique
+- **🏖️ Absences** (`/repos/absence`) : Enregistrement des absences avec calcul automatique des dates de retour (J+1) et d'intégration aux permanences (J+2)
+- **📊 Tableau de bord** : Affichage uniquement des agents actifs
 
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Installation et démarrage
 
 ```sh
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
 npm run dev
 ```
 
-### Compile and Minify for Production
+## Production
 
 ```sh
 npm run build
 ```
+
