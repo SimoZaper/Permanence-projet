@@ -1105,6 +1105,75 @@ function calcCycleFromPrev(prevTours, agents, mode) {
 }
 
 // ════════════════════════════════════════════════════════════
+// CYCLE ROTATION — buildCycleFromPrevTours / getNextAgentInCycle
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Builds the ordered rotation cycle from prevTours history.
+ * Rules:
+ *  - Only the LAST appearance of each agent determines their position.
+ *  - Multiple agents on the same day are ordered by descending matricule.
+ *  - Only active agents are included.
+ * @param {Array} prevTours - [{dateISO, agents:[{nom,matricule}], obs}]
+ * @param {Array} allAgents - Full agents list (used to filter active ones)
+ * @returns {Array} Ordered cycle [{nom, matricule}]
+ */
+function buildCycleFromPrevTours(prevTours, allAgents) {
+  const activeAgents = (allAgents || STATE.agents).filter(a => a.actif);
+  if (!prevTours || prevTours.length === 0) {
+    return activeAgents.sort((a, b) => a.matricule - b.matricule);
+  }
+
+  // STEP 1: Find last appearance date for each agent
+  const lastAppearance = {};
+  prevTours.forEach(tour => {
+    (tour.agents || []).forEach(agent => {
+      lastAppearance[agent.nom] = tour.dateISO;
+    });
+  });
+  console.log('[Cycle] Dernières apparitions:', lastAppearance);
+
+  // STEP 2: Build cycle chronologically (oldest → newest)
+  const cycle = [];
+  const processed = new Set();
+  const sortedTours = [...prevTours].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+
+  sortedTours.forEach(tour => {
+    // Sort agents by descending matricule for this day
+    const tourAgents = (tour.agents || []).slice().sort((a, b) => b.matricule - a.matricule);
+    tourAgents.forEach(agent => {
+      const isLastAppearance = lastAppearance[agent.nom] === tour.dateISO;
+      const notYetAdded = !processed.has(agent.nom);
+      if (isLastAppearance && notYetAdded) {
+        // Only include active agents
+        const agentData = activeAgents.find(a => a.nom === agent.nom);
+        if (agentData) {
+          cycle.push({ nom: agent.nom, matricule: agentData.matricule });
+          processed.add(agent.nom);
+        }
+      }
+    });
+  });
+
+  console.log('[Cycle] Cycle construit:', cycle.map((a, i) => (i + 1) + '. ' + a.nom + ' (' + a.matricule + ')'));
+  return cycle;
+}
+
+/**
+ * Returns the next agent in the rotation cycle after lastAgentName.
+ * Wraps around to the start of the cycle.
+ * @param {Array} cycle - Ordered cycle [{nom, matricule}]
+ * @param {String} lastAgentName - Name of the last agent on duty
+ * @returns {Object|null} Next agent {nom, matricule}
+ */
+function getNextAgentInCycle(cycle, lastAgentName) {
+  if (!cycle || cycle.length === 0) return null;
+  const currentIndex = cycle.findIndex(a => a.nom === lastAgentName);
+  if (currentIndex === -1) return cycle[0];
+  return cycle[(currentIndex + 1) % cycle.length];
+}
+
+// ════════════════════════════════════════════════════════════
 // PLANNING MERGE: combine prevTours + generated future
 // ════════════════════════════════════════════════════════════
 function buildFullPlanning(prevToursRows, agents, mode) {
@@ -1155,15 +1224,28 @@ function buildFullPlanning(prevToursRows, agents, mode) {
   });
   prevEntries.sort((a,b) => a.dateISO.localeCompare(b.dateISO));
 
-  // Calc cycle state
-  const { cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO } = calcCycleFromPrev(
-    prevToursRows, sorted, mode
-  );
+  let cycleAgents, cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO;
+
+  if (mode === 'WEEK') {
+    // Keep existing index-based logic for WEEK mode
+    cycleAgents = sorted;
+    ({ cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO } = calcCycleFromPrev(prevToursRows, sorted, mode));
+  } else {
+    // New cycle-based approach for CONTINU mode
+    cycleAgents = buildCycleFromPrevTours(prevToursRows, STATE.agents);
+    if (!cycleAgents.length) cycleAgents = sorted;
+    const sortedPrev = [...prevToursRows].filter(r => r.dateISO).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+    nextStartISO = sortedPrev.length > 0 ? addDays(sortedPrev[sortedPrev.length - 1].dateISO, 1) : todayISO();
+    cycleIndex = 0;
+    cycleIndexSemaine = 0;
+    cycleIndexWeekend = 0;
+    console.log('[Cycle] Départ planning futur depuis index 0 (' + (cycleAgents[0] ? cycleAgents[0].nom : '?') + ') le ' + nextStartISO);
+  }
 
   // Generate 1 year from nextStartISO
   const futureEntries = generatePlanning(nextStartISO, 365, {
     mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
-  }, sorted);
+  }, cycleAgents);
 
   return [...prevEntries, ...futureEntries];
 }
@@ -1176,37 +1258,56 @@ function rebuildFrom(fromISO) {
   // Keep entries before fromISO
   const before = STATE.planning.filter(e => e.dateISO < fromISO);
 
-  // Find cycle state just before fromISO — flatten to [{dateISO, agentNom, matricule}]
-  const prevForCalc = [];
-  STATE.prevTours.forEach(r => {
-    if (r.dateISO >= fromISO) return;
-    if (Array.isArray(r.agents)) {
-      r.agents.forEach(a => prevForCalc.push({ dateISO: r.dateISO, agentNom: a.nom, matricule: a.matricule || 0 }));
-    } else if (r.agentNom) {
-      prevForCalc.push({ dateISO: r.dateISO, agentNom: r.agentNom, matricule: r.matricule || 0 });
-    }
-  });
-  before.forEach(e => {
-    if (e.isPrev || e.dateISO < fromISO) {
-      e.agents.filter(a => a.officiel).forEach(a => {
-        prevForCalc.push({ dateISO: e.dateISO, agentNom: a.nom, matricule: a.matricule });
-      });
-    }
-  });
-  // Deduplicate
-  const seen = new Set();
-  const deduped = prevForCalc.filter(r => {
-    const key = r.dateISO + r.agentNom;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const mode = STATE.settings.mode;
+  let cycleAgents, cycleIndex, cycleIndexSemaine, cycleIndexWeekend;
 
-  const { cycleIndex, cycleIndexSemaine, cycleIndexWeekend } = calcCycleFromPrev(deduped, agents, STATE.settings.mode);
+  if (mode === 'WEEK') {
+    // Keep existing index-based logic for WEEK mode
+    const prevForCalc = [];
+    STATE.prevTours.forEach(r => {
+      if (r.dateISO >= fromISO) return;
+      if (Array.isArray(r.agents)) {
+        r.agents.forEach(a => prevForCalc.push({ dateISO: r.dateISO, agentNom: a.nom, matricule: a.matricule || 0 }));
+      } else if (r.agentNom) {
+        prevForCalc.push({ dateISO: r.dateISO, agentNom: r.agentNom, matricule: r.matricule || 0 });
+      }
+    });
+    before.forEach(e => {
+      if (e.isPrev || e.dateISO < fromISO) {
+        e.agents.filter(a => a.officiel).forEach(a => {
+          prevForCalc.push({ dateISO: e.dateISO, agentNom: a.nom, matricule: a.matricule });
+        });
+      }
+    });
+    const seen = new Set();
+    const deduped = prevForCalc.filter(r => {
+      const key = r.dateISO + r.agentNom;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    ({ cycleIndex, cycleIndexSemaine, cycleIndexWeekend } = calcCycleFromPrev(deduped, agents, mode));
+    cycleAgents = agents;
+  } else {
+    // New cycle-based approach for CONTINU mode
+    cycleAgents = buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
+    if (!cycleAgents.length) cycleAgents = agents;
+    // Find the last official agent before fromISO to determine cycle position
+    const lastBefore = before
+      .filter(e => e.agents.some(a => a.officiel))
+      .sort((a, b) => b.dateISO.localeCompare(a.dateISO))[0];
+    const lastAgentNom = lastBefore ? (lastBefore.agents.find(a => a.officiel) || {}).nom : null;
+    const nextAgent = getNextAgentInCycle(cycleAgents, lastAgentNom);
+    cycleIndex = nextAgent ? cycleAgents.findIndex(a => a.nom === nextAgent.nom) : 0;
+    if (cycleIndex < 0) cycleIndex = 0;
+    cycleIndexSemaine = 0;
+    cycleIndexWeekend = 0;
+    console.log('[Cycle] rebuildFrom ' + fromISO + ': dernier=' + lastAgentNom + ', prochain=' + (nextAgent ? nextAgent.nom : '?') + ' (index ' + cycleIndex + ')');
+  }
 
   const future = generatePlanning(fromISO, 365, {
-    mode: STATE.settings.mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
-  }, agents);
+    mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
+  }, cycleAgents);
 
   STATE.planning = [...before, ...future];
   STATE.settings.nextGenDate = fromISO;
@@ -1220,13 +1321,18 @@ function getPlanEntry(dateISO) {
 
 // Get next N agents in rotation from current position
 function getNextInRotation(n) {
-  const agents = getActiveSorted();
+  const mode = STATE.settings.mode;
+  let agents;
+  if (mode === 'WEEK') {
+    agents = getActiveSorted();
+  } else {
+    agents = buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
+    if (!agents.length) agents = getActiveSorted();
+  }
   if (!agents.length) return [];
 
-  // Find current cycle index from settings
-  let idx = STATE.settings.cycleIndex || 0;
-
-  // Determine from last planning entry's agent
+  // Determine starting index from first upcoming planning entry
+  let idx = 0;
   const future = STATE.planning.filter(e => !e.isPrev && e.dateISO >= todayISO()).sort((a,b) => a.dateISO.localeCompare(b.dateISO));
   if (future.length > 0) {
     const lastAgent = future[0].agents.find(a => a.officiel);
@@ -1649,7 +1755,7 @@ function renderTab2() {
       const ag = firstFuture.agents.find(a => a.officiel);
       html += '<div class="result-banner mt-2">';
       html += '<h3>🎯 ' + t('nextPerm') + ': <strong>' + (ag ? ag.nom : '—') + '</strong> (' + (ag ? ag.matricule : '') + ') — ' + t('startingFrom') + ' ' + firstFuture.date + '</h3>';
-      const rOrder = getActiveSorted();
+      const rOrder = STATE.settings.mode === 'WEEK' ? getActiveSorted() : buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
       html += '<p>Ordre de rotation:</p><div class="rotation-list">';
       rOrder.forEach((a, i) => {
         const isCur = ag && a.nom === ag.nom;
