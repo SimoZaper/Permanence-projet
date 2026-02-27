@@ -875,6 +875,9 @@ function getMonthKey(iso) { return iso.substring(0,7); }
 // ════════════════════════════════════════════════════════════
 // AGENT UTILITIES
 // ════════════════════════════════════════════════════════════
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function getActiveSorted() {
   return STATE.agents.filter(a => a.actif).sort((a,b) => a.matricule - b.matricule);
 }
@@ -1722,12 +1725,12 @@ function renderPrevToursGrid() {
     html += '<td>';
     // Display current agents as badges
     html += '<div class="prev-agent-badges">';
-    rowAgents.forEach(nom => {
+    rowAgents.forEach((nom, agentIdx) => {
       if (!nom) return;
       if (isAdmin()) {
-        html += '<span class="prev-agent-badge">' + nom + '<span class="remove-badge" onclick="removePrevRowAgent(' + idx + ',\'' + nom.replace(/'/g, "\\'") + '\')">×</span></span>';
+        html += '<span class="prev-agent-badge">' + escHtml(nom) + '<span class="remove-badge" onclick="removePrevRowAgent(' + idx + ',' + agentIdx + ')">×</span></span>';
       } else {
-        html += '<span class="prev-agent-badge">' + nom + '</span>';
+        html += '<span class="prev-agent-badge">' + escHtml(nom) + '</span>';
       }
     });
     if (isAdmin()) {
@@ -1759,10 +1762,10 @@ function setPrevAgent(idx, val) {
     _prevToursPage.rows[idx].agents = val ? [val] : [];
   }
 }
-function removePrevRowAgent(idx, nom) {
-  const row = _prevToursPage.rows[idx];
-  if (row) {
-    row.agents = (row.agents || []).filter(n => n !== nom);
+function removePrevRowAgent(rowIdx, agentIdx) {
+  const row = _prevToursPage.rows[rowIdx];
+  if (row && row.agents) {
+    row.agents.splice(agentIdx, 1);
     renderTab2();
   }
 }
@@ -1803,7 +1806,7 @@ function openQuickEntry(rowIdx, dateISO) {
   html += '<div class="quick-agents">';
   agents.forEach(a => {
     const isSelected = currentAgents.includes(a.nom);
-    html += '<button class="quick-agent-btn' + (isSelected ? ' selected' : '') + '" data-agent="' + a.nom + '" onclick="toggleQuickAgent(this)">' + a.nom + '<br><small>' + a.matricule + '</small></button>';
+    html += '<button class="quick-agent-btn' + (isSelected ? ' selected' : '') + '" data-agent="' + escHtml(a.nom) + '" onclick="toggleQuickAgent(this)">' + escHtml(a.nom) + '<br><small>' + a.matricule + '</small></button>';
   });
   html += '</div>';
 
