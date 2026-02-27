@@ -491,6 +491,9 @@ const DAYS_AHEAD = 18;
 const DEFAULT_ALERT_THRESHOLD = 30;
 const MAX_LOGS_RETAINED = 1000;
 const MAX_CONNEXIONS_RETAINED = 200;
+// Global filter state for Tab 5 (persisted across re-renders)
+let _reposFilterAgent = '';
+let _reposFilterType = '';
 
 // FNV-1a 32-bit hash — much harder to reverse than base64, no async needed
 function hashPwd(str) {
@@ -608,6 +611,7 @@ const I18N = {
     statusInProgress:'En cours 🔴', statusUpcoming:'À venir 🟡', statusPast:'Passé ⚫',
     warningRecalc:'⚠️ La modification des absences peut nécessiter une recalculation du planning.',
     daysWithoutPerm:'jours sans permanence',
+    noPerm:'aucune permanence enregistrée',
     allUnavailableToast:'⚠️ Tous les agents indisponibles le %s — l\'agent en tête de liste est assigné par défaut. Veuillez corriger les congés/récupérations.'
   },
   ar: {
@@ -665,6 +669,7 @@ const I18N = {
     statusInProgress:'جار 🔴', statusUpcoming:'قادم 🟡', statusPast:'منتهٍ ⚫',
     warningRecalc:'⚠️ قد يستلزم تعديل الغيابات إعادة حساب الجدول.',
     daysWithoutPerm:'أيام بدون ديمومة',
+    noPerm:'لا توجد ديمومة مسجلة',
     allUnavailableToast:'⚠️ جميع الأعوان غير متاحين في %s — تم تعيين العون الأول افتراضياً. يرجى تصحيح الإجازات/التعويضات.'
   }
 };
@@ -1452,6 +1457,8 @@ function renderTab1() {
 
   let cardsHTML = '<div class="section-title"><span class="icon">📋</span>' + t('next18') + '</div>';
   cardsHTML += '<div class="day-cards-grid">';
+  // Calculate recupMap once outside the loop (Bug 9 fix)
+  const recupMapForCards = getRecupSet(STATE.planning);
   next18.forEach(({ dateISO, entry, isPast }) => {
     if (!entry && !isPast) return;
     const classes = ['day-card'];
@@ -1465,8 +1472,7 @@ function renderTab1() {
     const hasReplace = agentList.some(a => a.remplacePar);
 
     // Recovery badge
-    const recupMap = getRecupSet(STATE.planning.slice(0, STATE.planning.length));
-    const inRecup = agents.some(a => recupMap[dateISO] && recupMap[dateISO].has(a.nom));
+    const inRecup = agents.some(a => recupMapForCards[dateISO] && recupMapForCards[dateISO].has(a.nom));
 
     let badges = '';
     if (dateISO === today) badges += '<span class="badge badge-today">' + t('today') + '</span>';
@@ -1594,11 +1600,15 @@ function renderTab1Sidebar() {
 
   // Alerts
   let alertsHTML = '<div class="sidebar-card"><div class="sidebar-card-header">⚠️ ' + t('alerts') + '</div><div class="sidebar-card-body">';
-  const threshold = STATE.settings.alertThresholdDays || 30;
+  const threshold = STATE.settings.alertThresholdDays || agents.length;
   const stats = calcAgentStats();
   let hasAlert = false;
   Object.values(stats).forEach(s => {
-    if (!s.lastPerm) return;
+    if (!s.lastPerm) {
+      alertsHTML += '<div class="alert-item warn">⚠️ ' + s.nom + ': ' + t('noPerm') + '</div>';
+      hasAlert = true;
+      return;
+    }
     const days = diffDays(s.lastPerm, today);
     if (days > threshold) {
       alertsHTML += '<div class="alert-item warn">⚠️ ' + s.nom + ': ' + days + ' ' + t('daysWithoutPerm') + '</div>';
@@ -2302,19 +2312,19 @@ function renderTab5() {
 
   // Filters
   html += '<div class="filters-bar">';
-  html += '<div class="filter-group"><label>Agent:</label><select id="reposFilterAgent" onchange="renderTab5()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
+  html += '<div class="filter-group"><label>Agent:</label><select id="reposFilterAgent" onchange="_reposFilterAgent=this.value;renderTab5()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
   html += '<option value="">Tous</option>';
-  agents.forEach(a => html += '<option value="' + a.nom + '">' + a.nom + '</option>');
+  agents.forEach(a => html += '<option value="' + a.nom + '"' + (_reposFilterAgent===a.nom?' selected':'') + '>' + a.nom + '</option>');
   html += '</select></div>';
-  html += '<div class="filter-group"><label>Type:</label><select id="reposFilterType" onchange="renderTab5()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
-  html += '<option value="">Tous</option><option value="congé">Congé</option><option value="maladie">Maladie</option><option value="mission">Mission</option>';
+  html += '<div class="filter-group"><label>Type:</label><select id="reposFilterType" onchange="_reposFilterType=this.value;renderTab5()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
+  html += '<option value="">Tous</option><option value="congé"' + (_reposFilterType==='congé'?' selected':'') + '>Congé</option><option value="maladie"' + (_reposFilterType==='maladie'?' selected':'') + '>Maladie</option><option value="mission"' + (_reposFilterType==='mission'?' selected':'') + '>Mission</option>';
   html += '</select></div></div>';
 
   ca.innerHTML = html;
 
-  // Apply filter
-  const filterAgent = document.getElementById('reposFilterAgent') ? document.getElementById('reposFilterAgent').value : '';
-  const filterType = document.getElementById('reposFilterType') ? document.getElementById('reposFilterType').value : '';
+  // Apply filter using global state
+  const filterAgent = _reposFilterAgent;
+  const filterType = _reposFilterType;
   let repos = [...STATE.repos].sort((a,b) => b.debut.localeCompare(a.debut));
   if (filterAgent) repos = repos.filter(r => r.agent === filterAgent);
   if (filterType) repos = repos.filter(r => r.type === filterType);
@@ -2434,7 +2444,9 @@ function saveRepos(id) {
 
   saveState();
   closeModal();
-  showToast('Absence enregistrée. Recalcul recommandé.', 'success');
+  showToast('Absence enregistrée. Recalcul en cours...', 'success');
+  if (STATE.planning.length) rebuildFrom(debut);
+  if (STATE.currentTab === 1) renderTab1Sidebar();
   renderTab5();
 }
 
@@ -2446,6 +2458,8 @@ function deleteRepos(id) {
   addLog('repos', r.debut, r, {}, 'Suppression absence');
   saveState();
   showToast('Absence supprimée', 'success');
+  if (STATE.planning.length) rebuildFrom(r.debut);
+  if (STATE.currentTab === 1) renderTab1Sidebar();
   renderTab5();
 }
 // ════════════════════════════════════════════════════════════
@@ -2553,7 +2567,7 @@ function saveEchange() {
 }
 
 function deleteEchange(id) {
-  const e = STATE.echanges.find(x => x.id === id);
+  const e = STATE.echanges.find(x => String(x.id) === String(id));
   if (!e) return;
   if (!confirm('Supprimer cet échange ?')) return;
   // Restore planning entry
@@ -2566,7 +2580,7 @@ function deleteEchange(id) {
       }
     });
   }
-  STATE.echanges = STATE.echanges.filter(x => x.id !== id);
+  STATE.echanges = STATE.echanges.filter(x => String(x.id) !== String(id));
   addLog('echange', e.date, e, {}, 'Suppression échange');
   saveState();
   showToast('Échange supprimé', 'success');
@@ -2630,11 +2644,15 @@ function renderTab7() {
 
   // Alerts
   html += '<div class="card mt-2"><div class="card-header"><span class="card-title">⚠️ Alertes automatiques</span></div><div class="card-body">';
-  const threshold = STATE.settings.alertThresholdDays || 30;
+  const threshold = STATE.settings.alertThresholdDays || agents.length;
   let hasAlert = false;
   agents.forEach(a => {
     const s = stats[a.nom];
-    if (!s || !s.lastPerm) return;
+    if (!s || !s.lastPerm) {
+      html += '<div class="alert-item warn">⚠️ <strong>' + a.nom + '</strong>: aucune permanence enregistrée</div>';
+      hasAlert = true;
+      return;
+    }
     const days = diffDays(s.lastPerm, today);
     if (days > threshold) {
       html += '<div class="alert-item warn">⚠️ <strong>' + a.nom + '</strong>: ' + days + ' jours sans permanence (seuil: ' + threshold + ')</div>';
@@ -2712,13 +2730,17 @@ function renderTab8() {
   const ca = document.getElementById('contentArea');
   let html = '<div class="section-title"><span class="icon">📜</span>' + t('tab8') + '</div>';
   html += '<div class="sub-tabs">';
-  html += '<button class="sub-tab active" onclick="showSubTab(\'hist8\',\'modif\',this)">' + t('modifLog') + '</button>';
-  html += '<button class="sub-tab" onclick="showSubTab(\'hist8\',\'archive\',this)">' + t('annualArchive') + '</button>';
+  if (isAdmin()) {
+    html += '<button class="sub-tab active" onclick="showSubTab(\'hist8\',\'modif\',this)">' + t('modifLog') + '</button>';
+  }
+  html += '<button class="sub-tab' + (isAdmin() ? '' : ' active') + '" onclick="showSubTab(\'hist8\',\'archive\',this)">' + t('annualArchive') + '</button>';
   html += '<button class="sub-tab" onclick="showSubTab(\'hist8\',\'connexions\',this)">' + t('connexionLog') + '</button>';
   html += '</div>';
 
-  html += '<div id="hist8_modif" class="sub-tab-content active">' + renderModifLog() + '</div>';
-  html += '<div id="hist8_archive" class="sub-tab-content">' + renderAnnualArchive() + '</div>';
+  if (isAdmin()) {
+    html += '<div id="hist8_modif" class="sub-tab-content active">' + renderModifLog() + '</div>';
+  }
+  html += '<div id="hist8_archive" class="sub-tab-content' + (isAdmin() ? '' : ' active') + '">' + renderAnnualArchive() + '</div>';
   html += '<div id="hist8_connexions" class="sub-tab-content">' + renderConnexionLog() + '</div>';
   ca.innerHTML = html;
 }
@@ -2756,7 +2778,7 @@ function renderAnnualArchive() {
   let selectedYear = years.length ? years[years.length-1] : today.substring(0,4);
 
   let html = '<div class="flex flex-gap mb-2 items-center">';
-  html += '<label>Année:</label><select onchange="this.nextElementSibling.textContent=renderAnnualPlan(this.value)" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
+  html += '<label>Année:</label><select onchange="document.getElementById(\'annualPlanContent\').innerHTML=renderAnnualPlan(this.value)" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
   years.forEach(y => html += '<option value="' + y + '"' + (y===selectedYear?' selected':'') + '>' + y + '</option>');
   html += '</select>';
   html += '<button class="btn btn-sm btn-success" onclick="exportYearExcel()">📊 Excel</button>';
@@ -2767,7 +2789,9 @@ function renderAnnualArchive() {
 }
 
 function renderAnnualPlan(year) {
-  const entries = STATE.planning.filter(e => e.dateISO.startsWith(year)).sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+  // Validate year to prevent XSS — must be a 4-digit numeric year
+  const safeYear = /^\d{4}$/.test(String(year)) ? String(year) : '';
+  const entries = STATE.planning.filter(e => safeYear && e.dateISO.startsWith(safeYear)).sort((a,b) => a.dateISO.localeCompare(b.dateISO));
   const today = todayISO();
   let html = '<div class="table-container"><table><thead><tr>';
   html += '<th>#</th><th>Date</th><th>Jour</th><th>Agent(s)</th><th>Type</th><th>Récup.</th><th>Obs.</th></tr></thead><tbody>';
