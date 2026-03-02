@@ -1,0 +1,3380 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tour de Permanence — EXP</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary: #1B2A4A;
+  --primary-light: #2E4A7A;
+  --secondary: #A8B4C4;
+  --accent: #C0C8D4;
+  --success: #27ae60;
+  --warning: #f39c12;
+  --danger: #e74c3c;
+  --dark: #1a252f;
+  --light: #f0f2f5;
+  --white: #ffffff;
+  --text-primary: #1a252f;
+  --text-secondary: #4a5568;
+  --bg-primary: #f0f2f5;
+  --bg-card: #ffffff;
+  --border-color: #e2e8f0;
+  --shadow: 0 2px 4px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --transition: all 0.2s ease;
+  --weekend-color: #3498db;
+  --today-color: #f39c12;
+  --double-color: #27ae60;
+  --recup-color: #e67e22;
+  --prev-color: #9b59b6;
+}
+[data-theme="dark"] {
+  --bg-primary: #0f1923;
+  --bg-card: #1a2535;
+  --text-primary: #e2e8f0;
+  --text-secondary: #a0aec0;
+  --border-color: #2d3748;
+  --shadow: 0 2px 4px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --primary: #2E4A7A;
+  --primary-light: #3a5a9a;
+  --light: #1a2535;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-primary);color:var(--text-primary);min-width:1024px;transition:background 0.3s,color 0.3s}
+body.arabic{font-family:'Cairo',sans-serif}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg-primary)}
+::-webkit-scrollbar-thumb{background:var(--secondary);border-radius:3px}
+
+/* ── LOGIN ── */
+#loginPage{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--primary) 0%,var(--primary-light) 100%)}
+.login-box{background:var(--bg-card);border-radius:var(--radius-lg);padding:2.5rem 2rem;width:380px;box-shadow:var(--shadow-md)}
+.login-logo{text-align:center;margin-bottom:1.5rem}
+.login-logo h1{color:var(--primary);font-size:1.5rem;font-weight:700;margin-top:.5rem}
+.login-logo p{color:var(--text-secondary);font-size:.85rem}
+.login-logo .logo-icon{width:64px;height:64px;background:var(--primary);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--white);font-size:1.8rem}
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;font-size:.85rem;font-weight:600;color:var(--text-secondary);margin-bottom:.4rem}
+.form-control{width:100%;padding:.6rem .9rem;border:1.5px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:.9rem;transition:var(--transition)}
+.form-control:focus{outline:none;border-color:var(--primary-light);box-shadow:0 0 0 3px rgba(46,74,122,.15)}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;border-radius:var(--radius);border:none;font-size:.875rem;font-weight:600;transition:var(--transition);white-space:nowrap}
+.btn-primary{background:var(--primary);color:var(--white)}
+.btn-primary:hover{background:var(--primary-light)}
+.btn-success{background:var(--success);color:var(--white)}
+.btn-success:hover{filter:brightness(1.1)}
+.btn-warning{background:var(--warning);color:var(--white)}
+.btn-warning:hover{filter:brightness(1.1)}
+.btn-danger{background:var(--danger);color:var(--white)}
+.btn-danger:hover{filter:brightness(1.1)}
+.btn-secondary{background:var(--secondary);color:var(--dark)}
+.btn-secondary:hover{filter:brightness(.95)}
+.btn-outline{background:transparent;border:1.5px solid var(--primary);color:var(--primary)}
+.btn-outline:hover{background:var(--primary);color:var(--white)}
+.btn-sm{padding:.35rem .7rem;font-size:.8rem}
+.btn-lg{padding:.75rem 1.5rem;font-size:1rem}
+.btn-block{width:100%;justify-content:center}
+.login-error{background:#fde8e8;border:1px solid var(--danger);color:var(--danger);padding:.6rem .9rem;border-radius:var(--radius);font-size:.85rem;margin-top:.8rem;display:none}
+
+/* ── APP LAYOUT ── */
+#appPage{display:flex;flex-direction:column;min-height:100vh}
+.app-header{background:var(--primary);color:var(--white);padding:.6rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.header-logo{display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+.header-logo .logo-icon-sm{width:36px;height:36px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.header-logo h1{font-size:1.05rem;font-weight:700;line-height:1.2}
+.header-logo span{font-size:.75rem;opacity:.8}
+.header-spacer{flex:1}
+.header-controls{display:flex;align-items:center;gap:.6rem}
+.lang-toggle{display:flex;background:rgba(255,255,255,.1);border-radius:20px;overflow:hidden}
+.lang-btn{padding:.3rem .8rem;border:none;background:transparent;color:rgba(255,255,255,.7);font-size:.8rem;font-weight:600;cursor:pointer;transition:var(--transition)}
+.lang-btn.active{background:rgba(255,255,255,.25);color:var(--white)}
+.mode-badge{background:rgba(255,255,255,.15);padding:.25rem .7rem;border-radius:20px;font-size:.75rem;font-weight:600}
+.user-info{display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.1);padding:.3rem .8rem;border-radius:20px;font-size:.82rem}
+.user-avatar{width:28px;height:28px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:.85rem}
+.header-icon-btn{width:34px;height:34px;border:none;background:rgba(255,255,255,.1);color:var(--white);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:var(--transition)}
+.header-icon-btn:hover{background:rgba(255,255,255,.25)}
+.app-navbar{background:var(--bg-card);border-bottom:2px solid var(--border-color);display:flex;overflow-x:auto;position:sticky;top:56px;z-index:99;box-shadow:var(--shadow)}
+.nav-tab{padding:.7rem 1.1rem;border:none;background:transparent;color:var(--text-secondary);font-size:.83rem;font-weight:600;cursor:pointer;transition:var(--transition);white-space:nowrap;border-bottom:3px solid transparent;display:flex;align-items:center;gap:.35rem}
+.nav-tab:hover{color:var(--primary);background:var(--light)}
+.nav-tab.active{color:var(--primary);border-bottom-color:var(--primary);background:var(--light)}
+.app-main{flex:1;padding:1.2rem 1.5rem;display:flex;gap:1rem}
+.content-area{flex:1;min-width:0}
+.sidebar{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:.8rem}
+.app-footer{background:var(--primary);color:rgba(255,255,255,.7);text-align:center;padding:.5rem;font-size:.78rem}
+
+/* ── CARDS ── */
+.card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden}
+.card-header{padding:.8rem 1rem;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:.95rem;font-weight:700;color:var(--text-primary)}
+.card-body{padding:1rem}
+.banner-card{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-light) 100%);color:var(--white);border-radius:var(--radius-lg);padding:1.2rem 1.5rem;display:flex;gap:1.5rem;align-items:center;margin-bottom:1rem}
+.banner-item{text-align:center;flex:1}
+.banner-item .val{font-size:1.6rem;font-weight:700;line-height:1}
+.banner-item .lbl{font-size:.75rem;opacity:.8;margin-top:.25rem}
+.banner-divider{width:1px;background:rgba(255,255,255,.2)}
+.day-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.7rem;margin-bottom:1rem}
+.day-card{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow);padding:.75rem;transition:var(--transition);border-left:3px solid transparent;cursor:pointer;position:relative}
+.day-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.day-card.today{border-left-color:var(--today-color);background:linear-gradient(135deg,#fffdf0,var(--bg-card))}
+.day-card.weekend{border-left-color:var(--weekend-color)}
+.day-card.double{border-left-color:var(--double-color)}
+.day-card.prev{border-left-color:var(--prev-color);opacity:.85}
+.day-card.recup{border-left-color:var(--recup-color)}
+.day-card-date{font-size:.72rem;color:var(--text-secondary);font-weight:600;margin-bottom:.3rem}
+.day-card-day{font-size:.78rem;font-weight:700;color:var(--text-primary);margin-bottom:.5rem}
+.day-card-avatar{width:44px;height:44px;border-radius:50%;background:var(--primary);color:var(--white);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;margin:0 auto .4rem;overflow:hidden}
+.day-card-avatar img{width:100%;height:100%;object-fit:cover}
+.day-card-name{font-size:.82rem;font-weight:700;text-align:center;color:var(--text-primary)}
+.day-card-mat{font-size:.72rem;color:var(--text-secondary);text-align:center}
+.day-card-badges{display:flex;flex-wrap:wrap;gap:.25rem;justify-content:center;margin-top:.4rem}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:.2rem .5rem;border-radius:12px;font-size:.7rem;font-weight:700;line-height:1}
+.badge-today{background:#fff3cd;color:#856404}
+.badge-we{background:#cfe2ff;color:#084298}
+.badge-double{background:#d1e7dd;color:#0f5132}
+.badge-remplace{background:#f8d7da;color:#842029}
+.badge-prev{background:#e8d5f5;color:#6f42c1}
+.badge-recup{background:#ffd8b1;color:#7c4000}
+.badge-conge{background:#d1ecf1;color:#0c5460}
+.badge-mission{background:#fef3cd;color:#664d03}
+.badge-maladie{background:#f8d7da;color:#842029}
+.badge-success{background:#d1e7dd;color:#0f5132}
+.badge-warning{background:#fff3cd;color:#856404}
+.badge-danger{background:#f8d7da;color:#842029}
+.badge-info{background:#cfe2ff;color:#084298}
+
+/* ── TABLES ── */
+.table-container{overflow-x:auto;border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:.855rem}
+thead{background:var(--primary);color:var(--white)}
+thead th{padding:.65rem .9rem;text-align:left;font-weight:600;white-space:nowrap;font-size:.82rem}
+tbody tr{border-bottom:1px solid var(--border-color);transition:var(--transition)}
+tbody tr:hover{background:var(--light)}
+tbody td{padding:.6rem .9rem;vertical-align:middle}
+tbody tr.today-row{background:#fffdf0}
+tbody tr.weekend-row{background:#f0f7ff}
+tbody tr.prev-row{background:#f8f0ff}
+.table-actions{display:flex;gap:.35rem;align-items:center}
+
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--bg-card);border-radius:var(--radius-lg);width:90%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);transform:scale(.95);transition:transform .2s}
+.modal-overlay.show .modal{transform:scale(1)}
+.modal-lg{max-width:720px}
+.modal-xl{max-width:900px}
+.modal-header{padding:1rem 1.2rem;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg-card);z-index:1}
+.modal-title{font-size:1rem;font-weight:700}
+.modal-close{width:30px;height:30px;border:none;background:var(--light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--text-secondary);cursor:pointer;transition:var(--transition)}
+.modal-close:hover{background:var(--danger);color:var(--white)}
+.modal-body{padding:1.2rem}
+.modal-footer{padding:.8rem 1.2rem;border-top:1px solid var(--border-color);display:flex;gap:.5rem;justify-content:flex-end;position:sticky;bottom:0;background:var(--bg-card)}
+
+/* ── FORMS ── */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;font-size:.83rem;font-weight:600;color:var(--text-secondary);margin-bottom:.35rem}
+.form-group .form-control{width:100%;padding:.55rem .8rem;border:1.5px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:.875rem;transition:var(--transition)}
+.form-group .form-control:focus{outline:none;border-color:var(--primary-light);box-shadow:0 0 0 3px rgba(46,74,122,.12)}
+select.form-control{cursor:pointer}
+textarea.form-control{resize:vertical;min-height:70px}
+.form-hint{font-size:.75rem;color:var(--text-secondary);margin-top:.25rem}
+.form-check{display:flex;align-items:center;gap:.5rem;cursor:pointer}
+.form-check input[type=checkbox]{width:16px;height:16px;cursor:pointer}
+
+/* ── SIDEBAR ── */
+.sidebar-card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden}
+.sidebar-card-header{background:var(--primary);color:var(--white);padding:.6rem .9rem;font-size:.85rem;font-weight:700;display:flex;align-items:center;gap:.4rem}
+.sidebar-card-body{padding:.7rem}
+.sidebar-item{display:flex;align-items:center;gap:.6rem;padding:.45rem .3rem;border-bottom:1px solid var(--border-color)}
+.sidebar-item:last-child{border-bottom:none}
+.sidebar-avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);color:var(--white);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;overflow:hidden}
+.sidebar-avatar img{width:100%;height:100%;object-fit:cover}
+.sidebar-item-info{flex:1;min-width:0}
+.sidebar-item-name{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-item-sub{font-size:.72rem;color:var(--text-secondary)}
+.alert-item{display:flex;align-items:flex-start;gap:.5rem;padding:.45rem;border-radius:var(--radius);margin-bottom:.4rem;font-size:.8rem}
+.alert-item.warn{background:#fff3cd;color:#856404}
+.alert-item.danger{background:#f8d7da;color:#842029}
+.alert-item.info{background:#cfe2ff;color:#084298}
+
+/* ── AGENT CARDS ── */
+.agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
+.agent-card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:1.2rem;text-align:center;transition:var(--transition);border:2px solid transparent}
+.agent-card:hover{box-shadow:var(--shadow-md);border-color:var(--primary-light)}
+.agent-card.inactive{opacity:.6}
+.agent-avatar-lg{width:70px;height:70px;border-radius:50%;background:var(--primary);color:var(--white);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.8rem;margin:0 auto .8rem;overflow:hidden;position:relative}
+.agent-avatar-lg img{width:100%;height:100%;object-fit:cover}
+.agent-rank{position:absolute;bottom:0;right:0;width:22px;height:22px;background:var(--primary-light);color:var(--white);border-radius:50%;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg-card)}
+.agent-name{font-size:1rem;font-weight:700;margin-bottom:.15rem}
+.agent-mat{font-size:.78rem;color:var(--text-secondary);margin-bottom:.5rem}
+.agent-stats{display:flex;justify-content:space-around;margin:.8rem 0;padding:.6rem 0;border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color)}
+.agent-stat{text-align:center}
+.agent-stat .n{font-size:1.1rem;font-weight:700;color:var(--primary)}
+.agent-stat .l{font-size:.68rem;color:var(--text-secondary)}
+.agent-card-actions{display:flex;gap:.4rem;justify-content:center;margin-top:.6rem}
+
+/* ── PLANNING VIEWS ── */
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:var(--border-color);border-radius:var(--radius);overflow:hidden}
+.cal-header{background:var(--primary);color:var(--white);padding:.5rem;text-align:center;font-size:.8rem;font-weight:700}
+.cal-cell{background:var(--bg-card);padding:.4rem;min-height:70px;cursor:pointer;transition:var(--transition)}
+.cal-cell:hover{background:var(--light)}
+.cal-cell.today{background:#fffdf0;border:2px solid var(--today-color)}
+.cal-cell.weekend{background:#f0f7ff}
+.cal-cell.prev{background:#f8f0ff}
+.cal-cell.other-month{opacity:.4}
+.cal-date{font-size:.75rem;font-weight:700;margin-bottom:.2rem;color:var(--text-secondary)}
+.cal-agent{font-size:.72rem;background:var(--primary);color:var(--white);border-radius:4px;padding:.1rem .3rem;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.week-view{display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem}
+.week-day-col{background:var(--bg-card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.week-day-header{background:var(--primary);color:var(--white);padding:.5rem;text-align:center;font-size:.8rem;font-weight:700}
+.week-day-header.today-header{background:var(--today-color)}
+.week-day-header.weekend-header{background:var(--weekend-color)}
+.week-day-body{padding:.6rem;min-height:80px}
+
+/* ── TABS within tabs ── */
+.sub-tabs{display:flex;border-bottom:2px solid var(--border-color);margin-bottom:1rem;gap:.25rem}
+.sub-tab{padding:.5rem 1rem;border:none;background:transparent;color:var(--text-secondary);font-size:.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:var(--transition)}
+.sub-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.sub-tab-content{display:none}
+.sub-tab-content.active{display:block}
+
+/* ── FILTERS ── */
+.filters-bar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;background:var(--bg-card);padding:.8rem;border-radius:var(--radius);box-shadow:var(--shadow)}
+.filter-group{display:flex;align-items:center;gap:.4rem;font-size:.83rem}
+.filter-group label{font-weight:600;color:var(--text-secondary);white-space:nowrap}
+.filter-group select,.filter-group input{padding:.35rem .6rem;border:1.5px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:.82rem}
+
+/* ── STATS / DASHBOARD ── */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-bottom:1rem}
+.stat-card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:1rem;display:flex;align-items:center;gap:.8rem}
+.stat-icon{width:44px;height:44px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+.stat-icon.blue{background:#cfe2ff;color:#084298}
+.stat-icon.green{background:#d1e7dd;color:#0f5132}
+.stat-icon.orange{background:#ffd8b1;color:#7c4000}
+.stat-icon.purple{background:#e8d5f5;color:#6f42c1}
+.stat-info .n{font-size:1.6rem;font-weight:700;line-height:1;color:var(--text-primary)}
+.stat-info .l{font-size:.75rem;color:var(--text-secondary)}
+.chart-container{position:relative;background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:1rem;margin-bottom:1rem}
+.chart-title{font-size:.9rem;font-weight:700;margin-bottom:.8rem;color:var(--text-primary)}
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:1rem}
+
+/* ── PREVIOUS TOURS ── */
+.prev-tours-table{width:100%;border-collapse:collapse;font-size:.855rem}
+.prev-tours-table th{background:var(--primary);color:var(--white);padding:.6rem .9rem;text-align:left;font-size:.82rem}
+.prev-tours-table td{padding:.55rem .9rem;border-bottom:1px solid var(--border-color);vertical-align:middle}
+.prev-tours-table tr:hover td{background:var(--light)}
+.prev-agent-badges{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
+.prev-agent-badge{display:inline-flex;align-items:center;gap:.25rem;background:var(--primary);color:var(--white);border-radius:20px;padding:.15rem .55rem;font-size:.75rem;font-weight:600}
+.prev-agent-badge .remove-badge{cursor:pointer;opacity:.7;font-size:.85rem;line-height:1;margin-left:.1rem}
+.prev-agent-badge .remove-badge:hover{opacity:1}
+.quick-agents{display:flex;flex-wrap:wrap;gap:.5rem;padding:.8rem}
+.quick-agent-btn{padding:.5rem 1rem;border:2px solid var(--border-color);border-radius:var(--radius);background:var(--bg-card);cursor:pointer;font-size:.85rem;font-weight:600;transition:var(--transition)}
+.quick-agent-btn:hover{border-color:var(--primary);color:var(--primary)}
+.quick-agent-btn.selected{background:var(--primary);color:var(--white);border-color:var(--primary)}
+.mini-counters{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem}
+.mini-counter{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius);padding:.3rem .6rem;font-size:.75rem;display:flex;align-items:center;gap:.3rem}
+.mini-counter .cnt{font-weight:700;color:var(--primary)}
+.result-banner{background:linear-gradient(135deg,var(--success),#1e8449);color:var(--white);border-radius:var(--radius-lg);padding:1rem 1.5rem;margin-top:1rem}
+.result-banner h3{font-size:1rem;margin-bottom:.4rem}
+.result-banner p{font-size:.85rem;opacity:.9}
+.rotation-list{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
+.rotation-chip{background:rgba(255,255,255,.2);border-radius:20px;padding:.2rem .7rem;font-size:.78rem;font-weight:600}
+.rotation-chip.current{background:var(--white);color:var(--success);font-weight:700}
+
+/* ── EXCHANGE ── */
+.exchange-form{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:1.2rem;margin-bottom:1rem}
+.exchange-form h3{font-size:.95rem;font-weight:700;margin-bottom:1rem}
+
+/* ── SETTINGS ── */
+.settings-section{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:1.2rem;margin-bottom:1rem}
+.settings-section h3{font-size:.95rem;font-weight:700;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border-color)}
+.toggle-switch{display:inline-flex;align-items:center;gap:.6rem;cursor:pointer}
+.toggle-switch input[type=checkbox]{display:none}
+.toggle-track{width:44px;height:24px;background:var(--secondary);border-radius:12px;position:relative;transition:var(--transition)}
+.toggle-track::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:var(--white);border-radius:50%;transition:var(--transition)}
+.toggle-switch input:checked + .toggle-track{background:var(--success)}
+.toggle-switch input:checked + .toggle-track::after{transform:translateX(20px)}
+.users-table{width:100%;border-collapse:collapse;font-size:.855rem;margin-top:.8rem}
+.users-table th{background:var(--light);padding:.55rem .8rem;text-align:left;font-weight:700;font-size:.8rem;border-bottom:2px solid var(--border-color)}
+.users-table td{padding:.55rem .8rem;border-bottom:1px solid var(--border-color)}
+
+/* ── NOTIFICATIONS / TOASTS ── */
+.toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:2000;display:flex;flex-direction:column;gap:.5rem;max-width:320px}
+.toast{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:.8rem 1rem;display:flex;align-items:center;gap:.6rem;font-size:.85rem;border-left:4px solid;animation:slideIn .3s ease;pointer-events:all}
+.toast.success{border-color:var(--success)}
+.toast.error{border-color:var(--danger)}
+.toast.warning{border-color:var(--warning)}
+.toast.info{border-color:var(--primary-light)}
+.toast-icon{font-size:1rem}
+.toast-msg{flex:1}
+.toast-close{cursor:pointer;opacity:.6;font-size:1.1rem}
+.toast-close:hover{opacity:1}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── RTL / ARABIC ── */
+[dir="rtl"] .app-header,.app-header.rtl{flex-direction:row-reverse}
+[dir="rtl"] .banner-card,.banner-card.rtl{flex-direction:row-reverse}
+[dir="rtl"] thead th,[dir="rtl"] tbody td{text-align:right}
+[dir="rtl"] .day-card{border-left:none;border-right:3px solid transparent}
+[dir="rtl"] .day-card.today{border-right-color:var(--today-color)}
+[dir="rtl"] .day-card.weekend{border-right-color:var(--weekend-color)}
+[dir="rtl"] .alert-item{flex-direction:row-reverse}
+
+/* ── LOADING ── */
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border-color);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:3rem 2rem;color:var(--text-secondary)}
+.empty-state .icon{font-size:3rem;margin-bottom:.8rem}
+.empty-state p{font-size:.9rem}
+
+/* ── MISC ── */
+.section-title{font-size:1rem;font-weight:700;margin-bottom:.8rem;display:flex;align-items:center;gap:.5rem;color:var(--text-primary)}
+.section-title .icon{font-size:1.1rem}
+.divider{height:1px;background:var(--border-color);margin:1rem 0}
+.text-muted{color:var(--text-secondary)}
+.text-primary-c{color:var(--primary)}
+.text-success{color:var(--success)}
+.text-danger{color:var(--danger)}
+.text-warning{color:var(--warning)}
+.fw-bold{font-weight:700}
+.fw-600{font-weight:600}
+.text-center{text-align:center}
+.mt-1{margin-top:.4rem} .mt-2{margin-top:.8rem} .mt-3{margin-top:1.2rem}
+.mb-1{margin-bottom:.4rem} .mb-2{margin-bottom:.8rem} .mb-3{margin-bottom:1.2rem}
+.flex{display:flex} .flex-gap{gap:.5rem} .items-center{align-items:center}
+.justify-between{justify-content:space-between} .flex-wrap{flex-wrap:wrap}
+.hidden{display:none!important}
+.w-full{width:100%}
+.pagination{display:flex;gap:.3rem;align-items:center;margin-top:.8rem;justify-content:center}
+.page-btn{padding:.3rem .65rem;border:1.5px solid var(--border-color);border-radius:var(--radius);background:var(--bg-card);cursor:pointer;font-size:.8rem;color:var(--text-primary);transition:var(--transition)}
+.page-btn:hover,.page-btn.active{background:var(--primary);color:var(--white);border-color:var(--primary)}
+.progress-bar{height:6px;background:var(--border-color);border-radius:3px;overflow:hidden;margin-top:.4rem}
+.progress-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .5s ease}
+</style>
+</head>
+<body>
+<!-- ════════════ LOGIN PAGE ════════════ -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">🏢</div>
+      <h1 data-i18n="appTitle">Tour de Permanence</h1>
+      <p data-i18n="appSubTitle">Permanence de l'EXP</p>
+    </div>
+    <div class="form-group">
+      <label data-i18n="loginUser">Nom d'utilisateur</label>
+      <input type="text" id="loginUser" class="form-control" placeholder="admin" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label data-i18n="loginPass">Mot de passe</label>
+      <input type="password" id="loginPass" class="form-control" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" onclick="doLogin()" data-i18n="loginBtn">Se connecter</button>
+    <div id="loginError" class="login-error" data-i18n="loginError">Identifiants incorrects</div>
+  </div>
+</div>
+
+<!-- ════════════ MAIN APP ════════════ -->
+<div id="appPage" style="display:none">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-logo">
+      <div class="logo-icon-sm">🏢</div>
+      <div>
+        <h1 data-i18n="appTitle">Tour de Permanence</h1>
+        <span data-i18n="appSubTitle">Permanence de l'EXP</span>
+      </div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-controls">
+      <div class="lang-toggle">
+        <button class="lang-btn active" id="btnFR" onclick="setLang('fr')">FR</button>
+        <button class="lang-btn" id="btnAR" onclick="setLang('ar')">ع</button>
+      </div>
+      <div class="mode-badge" id="modeBadge">MODE CONTINU</div>
+      <div class="user-info" id="userInfo">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <span id="userLabel">Admin</span>
+      </div>
+      <button class="header-icon-btn" onclick="switchTab(9)" title="Paramètres">⚙️</button>
+      <button class="header-icon-btn" onclick="doLogout()" title="Déconnexion">🚪</button>
+    </div>
+  </header>
+
+  <!-- NAVBAR -->
+  <nav class="app-navbar" id="appNavbar">
+    <button class="nav-tab active" data-tab="1" onclick="switchTab(1)">🏠 <span data-i18n="tab1">Accueil</span></button>
+    <button class="nav-tab" data-tab="2" onclick="switchTab(2)">📋 <span data-i18n="tab2">Tours Précédents</span></button>
+    <button class="nav-tab" data-tab="3" onclick="switchTab(3)">📅 <span data-i18n="tab3">Planning Complet</span></button>
+    <button class="nav-tab" data-tab="4" onclick="switchTab(4)">👥 <span data-i18n="tab4">Agents</span></button>
+    <button class="nav-tab" data-tab="5" onclick="switchTab(5)">🏖️ <span data-i18n="tab5">Repos/Absences</span></button>
+    <button class="nav-tab" data-tab="6" onclick="switchTab(6)">🔄 <span data-i18n="tab6">Échanges</span></button>
+    <button class="nav-tab" data-tab="7" onclick="switchTab(7)">📊 <span data-i18n="tab7">Tableau de Bord</span></button>
+    <button class="nav-tab" data-tab="8" onclick="switchTab(8)">📜 <span data-i18n="tab8">Historique</span></button>
+    <button class="nav-tab" data-tab="9" onclick="switchTab(9)">⚙️ <span data-i18n="tab9">Paramètres</span></button>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <div class="app-main" id="appMain">
+    <div class="content-area" id="contentArea">
+      <!-- Dynamic content -->
+    </div>
+    <aside class="sidebar" id="appSidebar" style="display:none">
+      <!-- Sidebar content for Tab 1 -->
+    </aside>
+  </div>
+
+  <footer class="app-footer">
+    <span data-i18n="footer">Permanence de l'EXP — v1.0</span>
+  </footer>
+</div>
+
+<!-- ════════════ MODALS ════════════ -->
+<!-- Generic modal overlay -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOverlay(event)">
+  <div class="modal modal-lg" id="mainModal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="mainModalTitle">Modal</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="mainModalBody"></div>
+    <div class="modal-footer" id="mainModalFooter"></div>
+  </div>
+</div>
+
+<!-- Quick entry modal for prev tours -->
+<div class="modal-overlay" id="quickModalOverlay" onclick="closeQuickModalOverlay(event)">
+  <div class="modal modal-lg" id="quickModal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="quickModalTitle">Saisie Rapide</h3>
+      <button class="modal-close" onclick="closeQuickModal()">✕</button>
+    </div>
+    <div class="modal-body" id="quickModalBody"></div>
+    <div class="modal-footer" id="quickModalFooter">
+      <button class="btn btn-secondary" onclick="closeQuickModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmQuickEntry()" id="confirmQuickBtn">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+</div>
+<script>
+'use strict';
+// ════════════════════════════════════════════════════════════
+// CONSTANTS & INITIAL DATA
+// ════════════════════════════════════════════════════════════
+const STORAGE_KEY = 'perm_exp_v1';
+const APP_KEY = STORAGE_KEY; // alias kept for compatibility
+// UI constants
+const DAYS_BEFORE_TODAY = 2;
+const DAYS_AHEAD = 18;
+const DEFAULT_ALERT_THRESHOLD = 30;
+const MAX_LOGS_RETAINED = 1000;
+const MAX_CONNEXIONS_RETAINED = 200;
+
+// FNV-1a 32-bit hash — much harder to reverse than base64, no async needed
+function hashPwd(str) {
+  const SALT = 'EXP_PERM_2025';
+  const input = SALT + str;
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+// Migrate legacy btoa passwords on load
+function migratePassword(stored) {
+  // If it looks like a btoa string (base64, not 8-char hex), migrate it
+  if (stored && stored.length !== 8) {
+    try { return hashPwd(atob(stored)); } catch(e) { return stored; }
+  }
+  return stored;
+}
+
+// Migrate prevTours from old flat format [{dateISO, agentNom, matricule, obs}]
+// to new grouped format [{dateISO, agents:[{nom, matricule, officiel}], obs}]
+function migratePrevTours(arr) {
+  if (!arr || !arr.length) return arr || [];
+  // Detect old format: first entry has agentNom but no agents array
+  const needsMigration = arr.some(r => r.agentNom && !Array.isArray(r.agents));
+  if (!needsMigration) return arr;
+  const byDate = {};
+  arr.forEach(r => {
+    if (!r.dateISO) return;
+    if (!byDate[r.dateISO]) byDate[r.dateISO] = { dateISO: r.dateISO, agents: [], obs: r.obs || '' };
+    if (r.agentNom) {
+      byDate[r.dateISO].agents.push({ nom: r.agentNom, matricule: r.matricule || 0, officiel: true });
+    }
+  });
+  return Object.values(byDate).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+}
+
+const AGENTS_INIT = [
+  { id:1,  nom:"Tbeur",    matricule:46881, actif:true, photo:null },
+  { id:2,  nom:"Bennaji",  matricule:51220, actif:true, photo:null },
+  { id:3,  nom:"Brakech",  matricule:58967, actif:true, photo:null },
+  { id:4,  nom:"Filahi",   matricule:59085, actif:true, photo:null },
+  { id:5,  nom:"Baha",     matricule:60822, actif:true, photo:null },
+  { id:6,  nom:"Future",   matricule:66009, actif:true, photo:null },
+  { id:7,  nom:"Amzil",    matricule:66219, actif:true, photo:null },
+  { id:8,  nom:"Founoun",  matricule:69155, actif:true, photo:null },
+  { id:9,  nom:"Bouchait", matricule:75285, actif:true, photo:null },
+  { id:10, nom:"Oudli",    matricule:75466, actif:true, photo:null },
+  { id:11, nom:"Sejni",    matricule:75743, actif:true, photo:null }
+];
+
+const JOURS_FR = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const JOURS_AR = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MOIS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليوز','غشت','شتنبر','أكتوبر','نونبر','دجنبر'];
+
+// ════════════════════════════════════════════════════════════
+// I18N
+// ════════════════════════════════════════════════════════════
+const I18N = {
+  fr: {
+    appTitle:'Tour de Permanence', appSubTitle:"Permanence de l'EXP",
+    loginUser:"Nom d'utilisateur", loginPass:'Mot de passe', loginBtn:'Se connecter',
+    loginError:'Identifiants incorrects',
+    tab1:'Accueil', tab2:'Tours Précédents', tab3:'Planning Complet',
+    tab4:'Agents', tab5:'Repos/Absences', tab6:'Échanges', tab7:'Tableau de Bord',
+    tab8:'Historique', tab9:'Paramètres',
+    footer:"Permanence de l'EXP — v1.0",
+    today:"Aujourd'hui", todayPerm:"Permanencier du jour", activeMode:"Mode actif",
+    activeAgents:"Agents actifs", next18:"Prochains 18 jours",
+    nextRotation:"Prochains en rotation", onLeave:"En congé/absence",
+    alerts:"Alertes", exportPDF:"Export PDF", exportExcel:"Export Excel",
+    saveJSON:"Sauvegarder JSON", importJSON:"Importer JSON",
+    noPlanning:"Aucun planning généré. Commencez par saisir les tours précédents.",
+    modeContinu:"Mode Continu", modeWeek:"Mode Semaine",
+    conge:'Congé', maladie:'Maladie', mission:'Mission',
+    modification:'Modification', echange:'Échange', repos:'Repos',
+    agent:'Agent', matricule:'Matricule', date:'Date', jour:'Jour',
+    type:'Type', observation:'Observation', actions:'Actions',
+    recuperation:'Récupération', officiel:'Agent Officiel', remplacant:'Remplaçant',
+    motif:'Motif', debut:'Début', fin:'Fin', duree:'Durée',
+    add:'Ajouter', edit:'Modifier', delete:'Supprimer', save:'Enregistrer',
+    cancel:'Annuler', confirm:'Confirmer', validate:'Valider',
+    darkMode:'Mode sombre', language:'Langue', settings:'Paramètres',
+    backup:'Sauvegarde', restore:'Restauration', reset:'Réinitialiser',
+    users:'Utilisateurs', password:'Mot de passe', role:'Rôle',
+    admin:'Administrateur', viewer:'Lecteur',
+    threshold:'Seuil d\'alerte (jours)', historyDays:'Jours historique recommandés',
+    genSuccess:'Planning généré avec succès !', genFail:'Erreur lors de la génération',
+    nextPerm:'Prochain permanencier', startingFrom:'à partir du',
+    periodFrom:'Du', periodTo:'au', createGrid:'Créer la grille',
+    validateGen:'✅ Valider et Générer', quickEntry:'Saisie Rapide ⚡',
+    autoEntry:'Auto 🤖', weekDays:'Jours ouvrés', weekendDays:'Week-end',
+    total:'Total', semaine:'Semaine', weekend:'Week-end', double:'Double',
+    replacements:'Remplacements', lastPerm:'Dernière perm.', nextPerm2:'Prochaine perm.',
+    equityRate:'Taux d\'équité', coverage:'Couverture', daysPlanned:'Jours planifiés',
+    modifLog:'Journal des modifications', annualArchive:'Archives annuelles',
+    connexionLog:'Journal de connexion', year:'Année',
+    timestamp:'Horodatage', user:'Utilisateur', oldVal:'Ancienne valeur',
+    newVal:'Nouvelle valeur', reason:'Raison',
+    importConfirm:'Importer ces données ? Les données actuelles seront écrasées.',
+    resetConfirm:'Réinitialiser toutes les données ? Cette action est irréversible !',
+    resetConfirm2:'Confirmez-vous la RÉINITIALISATION COMPLÈTE ?',
+    noData:'Aucune donnée', loading:'Chargement...', active:'Actif', inactive:'Inactif',
+    seniority:'Ancienneté', rank:'Rang', history:'Historique',
+    recupDay:'Jour de récupération', effectiveDate:'Date effective',
+    modeChangeConfirm:'Changer le mode de rotation ?',
+    changePassword:'Changer le mot de passe', newPassword:'Nouveau mot de passe',
+    photoPicker:'Choisir une photo',
+    officialAgent:'Agent officiel', replacedBy:'Remplacé par',
+    exchangeDate:'Date d\'échange', exchangeReason:'Motif d\'échange',
+    enteredBy:'Saisi par', entryDate:'Date de saisie',
+    statusInProgress:'En cours 🔴', statusUpcoming:'À venir 🟡', statusPast:'Passé ⚫',
+    warningRecalc:'⚠️ La modification des absences peut nécessiter une recalculation du planning.',
+    daysWithoutPerm:'jours sans permanence',
+    allUnavailableToast:'⚠️ Tous les agents indisponibles le %s — l\'agent en tête de liste est assigné par défaut. Veuillez corriger les congés/récupérations.'
+  },
+  ar: {
+    appTitle:'دوري الخدمة', appSubTitle:"ديمومة المشروع التجريبي",
+    loginUser:'اسم المستخدم', loginPass:'كلمة المرور', loginBtn:'تسجيل الدخول',
+    loginError:'بيانات الاعتماد غير صحيحة',
+    tab1:'الرئيسية', tab2:'الجولات السابقة', tab3:'الجدول الكامل',
+    tab4:'الأعوان', tab5:'الراحات/الغيابات', tab6:'التبادلات', tab7:'لوحة القيادة',
+    tab8:'السجل', tab9:'الإعدادات',
+    footer:"ديمومة المشروع التجريبي — v1.0",
+    today:'اليوم', todayPerm:'عون الديمومة اليوم', activeMode:'الوضع النشط',
+    activeAgents:'الأعوان النشطون', next18:'الـ18 يوماً القادمة',
+    nextRotation:'التالي في الدورة', onLeave:'في إجازة/غياب',
+    alerts:'تنبيهات', exportPDF:'تصدير PDF', exportExcel:'تصدير Excel',
+    saveJSON:'حفظ JSON', importJSON:'استيراد JSON',
+    noPlanning:'لم يتم إنشاء جدول. ابدأ بإدخال الجولات السابقة.',
+    modeContinu:'الوضع المتواصل', modeWeek:'وضع الأسبوع',
+    conge:'إجازة', maladie:'مرض', mission:'مهمة',
+    modification:'تعديل', echange:'تبادل', repos:'راحة',
+    agent:'العون', matricule:'رقم التسجيل', date:'التاريخ', jour:'اليوم',
+    type:'النوع', observation:'ملاحظة', actions:'الإجراءات',
+    recuperation:'التعويض', officiel:'العون الرسمي', remplacant:'البديل',
+    motif:'السبب', debut:'البداية', fin:'النهاية', duree:'المدة',
+    add:'إضافة', edit:'تعديل', delete:'حذف', save:'حفظ',
+    cancel:'إلغاء', confirm:'تأكيد', validate:'التحقق',
+    darkMode:'الوضع الداكن', language:'اللغة', settings:'الإعدادات',
+    backup:'نسخ احتياطي', restore:'استعادة', reset:'إعادة ضبط',
+    users:'المستخدمون', password:'كلمة المرور', role:'الدور',
+    admin:'مدير', viewer:'قارئ',
+    threshold:'عتبة التنبيه (أيام)', historyDays:'أيام السجل الموصى بها',
+    genSuccess:'تم إنشاء الجدول بنجاح !', genFail:'خطأ في الإنشاء',
+    nextPerm:'عون الديمومة القادم', startingFrom:'اعتباراً من',
+    periodFrom:'من', periodTo:'إلى', createGrid:'إنشاء الشبكة',
+    validateGen:'✅ التحقق والتوليد', quickEntry:'إدخال سريع ⚡',
+    autoEntry:'تلقائي 🤖', weekDays:'أيام العمل', weekendDays:'عطلة نهاية الأسبوع',
+    total:'المجموع', semaine:'الأسبوع', weekend:'نهاية الأسبوع', double:'مزدوج',
+    replacements:'الاستبدالات', lastPerm:'آخر ديمومة', nextPerm2:'الديمومة القادمة',
+    equityRate:'معدل العدالة', coverage:'التغطية', daysPlanned:'الأيام المجدولة',
+    modifLog:'سجل التعديلات', annualArchive:'الأرشيف السنوي',
+    connexionLog:'سجل الاتصالات', year:'السنة',
+    timestamp:'الطابع الزمني', user:'المستخدم', oldVal:'القيمة القديمة',
+    newVal:'القيمة الجديدة', reason:'السبب',
+    importConfirm:'استيراد هذه البيانات؟ ستُستبدل البيانات الحالية.',
+    resetConfirm:'إعادة ضبط جميع البيانات؟ هذا الإجراء لا يمكن التراجع عنه!',
+    resetConfirm2:'هل تؤكد إعادة الضبط الكاملة؟',
+    noData:'لا توجد بيانات', loading:'جار التحميل...', active:'نشط', inactive:'غير نشط',
+    seniority:'الأقدمية', rank:'الرتبة', history:'السجل',
+    recupDay:'يوم التعويض', effectiveDate:'تاريخ النفاذ',
+    modeChangeConfirm:'تغيير وضع الدورة؟',
+    changePassword:'تغيير كلمة المرور', newPassword:'كلمة مرور جديدة',
+    photoPicker:'اختيار صورة',
+    officialAgent:'العون الرسمي', replacedBy:'مستبدَل بـ',
+    exchangeDate:'تاريخ التبادل', exchangeReason:'سبب التبادل',
+    enteredBy:'أدخله', entryDate:'تاريخ الإدخال',
+    statusInProgress:'جار 🔴', statusUpcoming:'قادم 🟡', statusPast:'منتهٍ ⚫',
+    warningRecalc:'⚠️ قد يستلزم تعديل الغيابات إعادة حساب الجدول.',
+    daysWithoutPerm:'أيام بدون ديمومة',
+    allUnavailableToast:'⚠️ جميع الأعوان غير متاحين في %s — تم تعيين العون الأول افتراضياً. يرجى تصحيح الإجازات/التعويضات.'
+  }
+};
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let STATE = {
+  lang: 'fr',
+  theme: 'light',
+  currentUser: null,
+  currentTab: 1,
+  agents: [],
+  planning: [],
+  repos: [],
+  echanges: [],
+  logs: [],
+  connexions: [],
+  prevTours: [],
+  settings: {
+    mode: 'CONTINU',
+    modeChangedDate: null,
+    alertThresholdDays: 30,
+    historyDays: 16,
+    cycleIndex: 0,
+    cycleIndexSemaine: 0,
+    cycleIndexWeekend: 0,
+    nextGenDate: null
+  },
+  users: [
+    { id:1, login:'admin',  password: hashPwd('admin123'),  role:'admin',  nom:'Administrateur' },
+    { id:2, login:'viewer', password: hashPwd('viewer123'), role:'viewer', nom:'Lecteur' }
+  ]
+};
+let CHART_BAR = null, CHART_DONUT = null;
+let _quickEntryDate = null, _quickEntryRow = null;
+let _prevToursPage = { start: null, end: null, rows: [] };
+let _planningFilter = { month:'', agent:'', type:'' };
+let _calView = 'list', _calMonth = null, _calWeekStart = null;
+let _reposPage = 1;
+
+// Helper: generate a new unique ID for an array of objects with .id property
+function nextId(arr) { return Math.max(0, ...arr.map(x => x.id || 0)) + 1; }
+
+// ════════════════════════════════════════════════════════════
+// STORAGE
+// ════════════════════════════════════════════════════════════
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      lang: STATE.lang, theme: STATE.theme,
+      agents: STATE.agents, planning: STATE.planning,
+      repos: STATE.repos, echanges: STATE.echanges,
+      logs: STATE.logs, connexions: STATE.connexions.slice(-MAX_CONNEXIONS_RETAINED),
+      prevTours: STATE.prevTours, settings: STATE.settings,
+      users: STATE.users
+    }));
+  } catch(e) {
+    // Notify user if storage is unavailable or full
+    const msg = (e.name === 'QuotaExceededError') ? 'Stockage local plein. Exportez et nettoyez les données.' : 'Sauvegarde impossible: ' + e.message;
+    console.warn('Storage error:', e);
+    showToast(msg, 'warning');
+  }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    STATE.lang = data.lang || 'fr';
+    STATE.theme = data.theme || 'light';
+    STATE.agents = data.agents && data.agents.length ? data.agents : JSON.parse(JSON.stringify(AGENTS_INIT));
+    STATE.planning = data.planning || [];
+    STATE.repos = data.repos || [];
+    STATE.echanges = data.echanges || [];
+    STATE.logs = data.logs || [];
+    STATE.connexions = data.connexions || [];
+    STATE.prevTours = migratePrevTours(data.prevTours || []);
+    STATE.settings = Object.assign({
+      mode:'CONTINU', modeChangedDate:null, alertThresholdDays: DEFAULT_ALERT_THRESHOLD, historyDays:16,
+      cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextGenDate:null
+    }, data.settings || {});
+    if (data.users && data.users.length) {
+      // Migrate any legacy btoa-encoded passwords
+      STATE.users = data.users.map(u => ({ ...u, password: migratePassword(u.password) }));
+    }
+    return true;
+  } catch(e) {
+    console.warn('Load error:', e.message);
+    showToast('Erreur de chargement des données: ' + e.message + '. Les données par défaut seront utilisées.', 'warning');
+    return false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════════
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const user = STATE.users.find(x => x.login === u && x.password === hashPwd(p));
+  if (!user) {
+    document.getElementById('loginError').style.display = 'block';
+    return;
+  }
+  STATE.currentUser = { login: user.login, role: user.role, nom: user.nom, id: user.id };
+  // Log connection
+  STATE.connexions.push({
+    timestamp: formatDateTime(new Date()),
+    user: user.login,
+    role: user.role,
+    ua: navigator.userAgent.substring(0,120)
+  });
+  saveState();
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('appPage').style.display = 'flex';
+  applyTheme();
+  applyLang();
+  updateUserInfo();
+  switchTab(1);
+}
+
+function doLogout() {
+  STATE.currentUser = null;
+  document.getElementById('appPage').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+function isAdmin() {
+  return STATE.currentUser && STATE.currentUser.role === 'admin';
+}
+
+function updateUserInfo() {
+  const u = STATE.currentUser;
+  if (!u) return;
+  const av = document.getElementById('userAvatar');
+  const lbl = document.getElementById('userLabel');
+  if (av) av.textContent = u.nom ? u.nom[0].toUpperCase() : u.login[0].toUpperCase();
+  if (lbl) lbl.textContent = u.nom + ' (' + (u.role === 'admin' ? t('admin') : t('viewer')) + ')';
+}
+
+// ════════════════════════════════════════════════════════════
+// I18N HELPERS
+// ════════════════════════════════════════════════════════════
+function t(key) {
+  return (I18N[STATE.lang] && I18N[STATE.lang][key]) || (I18N.fr[key]) || key;
+}
+
+function setLang(lang) {
+  STATE.lang = lang;
+  saveState();
+  applyLang();
+  renderCurrentTab();
+}
+
+function applyLang() {
+  const isAr = STATE.lang === 'ar';
+  document.documentElement.lang = STATE.lang;
+  document.documentElement.dir = isAr ? 'rtl' : 'ltr';
+  document.body.classList.toggle('arabic', isAr);
+  document.getElementById('btnFR').classList.toggle('active', !isAr);
+  document.getElementById('btnAR').classList.toggle('active', isAr);
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (I18N[STATE.lang][k]) el.textContent = I18N[STATE.lang][k];
+  });
+}
+
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', STATE.theme);
+}
+
+// ════════════════════════════════════════════════════════════
+// DATE UTILITIES
+// ════════════════════════════════════════════════════════════
+function toISO(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function fromISO(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function formatDate(iso) {
+  const [y,m,d] = iso.split('-');
+  return d + '/' + m + '/' + y;
+}
+function formatDateTime(dt) {
+  return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear()+
+         ' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)+':'+('0'+dt.getSeconds()).slice(-2);
+}
+function addDays(iso, n) {
+  const d = fromISO(iso);
+  d.setDate(d.getDate() + n);
+  return toISO(d);
+}
+function diffDays(iso1, iso2) {
+  return Math.round((fromISO(iso2) - fromISO(iso1)) / 86400000);
+}
+function todayISO() { return toISO(new Date()); }
+function dowOf(iso) { return fromISO(iso).getDay(); } // 0=Sun,1=Mon,...,6=Sat
+function isWeekend(iso) { const d = dowOf(iso); return d === 0 || d === 6; }
+function jourFR(iso) { return JOURS_FR[dowOf(iso)]; }
+function jourAR(iso) { return JOURS_AR[dowOf(iso)]; }
+function getMonthKey(iso) { return iso.substring(0,7); }
+
+// ════════════════════════════════════════════════════════════
+// AGENT UTILITIES
+// ════════════════════════════════════════════════════════════
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function getActiveSorted() {
+  return STATE.agents.filter(a => a.actif).sort((a,b) => a.matricule - b.matricule);
+}
+function getAgentByName(nom) {
+  return STATE.agents.find(a => a.nom === nom);
+}
+function getAgentInitials(nom) {
+  return nom ? nom.substring(0,2).toUpperCase() : '??';
+}
+function getAgentColor(matricule) {
+  const colors = ['#1B2A4A','#2E4A7A','#27ae60','#e74c3c','#f39c12','#9b59b6','#16a085','#d35400','#2980b9','#8e44ad','#1abc9c'];
+  return colors[matricule % colors.length];
+}
+function renderAvatar(agent, size='sm') {
+  const cls = size === 'lg' ? 'agent-avatar-lg' : (size === 'card' ? 'day-card-avatar' : 'sidebar-avatar');
+  if (agent && agent.photo) {
+    return '<div class="' + cls + '"><img src="' + agent.photo + '" alt="' + agent.nom + '"></div>';
+  }
+  const initials = agent ? getAgentInitials(agent.nom) : '?';
+  const color = agent ? getAgentColor(agent.matricule) : '#999';
+  return '<div class="' + cls + '" style="background:' + color + '">' + initials + '</div>';
+}
+
+// ════════════════════════════════════════════════════════════
+// PLANNING ENGINE — Business Rules R01-R08
+// ════════════════════════════════════════════════════════════
+
+// R02/R03: Compute recovery day ISO for a given duty day
+function getRecupISO(dutyISO) {
+  const dow = dowOf(dutyISO);
+  if (dow === 6) { // Saturday → recovery on Tuesday (J+3)
+    return addDays(dutyISO, 3);
+  }
+  // Weekday (Mon-Fri) or Sunday → recovery next day (J+1)
+  return addDays(dutyISO, 1);
+}
+
+// Check if an agent is on approved leave/absence on a given date
+function isOnLeave(agentNom, dateISO) {
+  return STATE.repos.some(r => r.agent === agentNom && r.debut <= dateISO && r.fin >= dateISO);
+}
+
+// R04: Check if agent is on day-1 return from leave (was on leave yesterday, not today)
+function isDay1Return(agentNom, dateISO) {
+  const yesterday = addDays(dateISO, -1);
+  return isOnLeave(agentNom, yesterday) && !isOnLeave(agentNom, dateISO);
+}
+
+// R02/R03: Check if agent is in recovery on a given date
+// Build a recovery set from planning entries
+function getRecupSet(planning) {
+  const recupMap = {}; // dateISO => Set of agent names in recovery
+  planning.forEach(entry => {
+    entry.agents.forEach(a => {
+      if (a.officiel) {
+        const recupDate = getRecupISO(entry.dateISO);
+        if (!recupMap[recupDate]) recupMap[recupDate] = new Set();
+        recupMap[recupDate].add(a.nom);
+      }
+    });
+  });
+  return recupMap;
+}
+
+// Check availability for a specific date given existing planning
+function isAvailable(agentNom, dateISO, recupMap) {
+  if (isOnLeave(agentNom, dateISO)) return false;
+  if (isDay1Return(agentNom, dateISO)) return false;
+  if (recupMap[dateISO] && recupMap[dateISO].has(agentNom)) return false;
+  return true;
+}
+
+// R04+: Forced return — On fin+2 (the day after the return-rest day), the agent
+// who was on leave is forcibly assigned to permanence.
+// Called after every planning build/rebuild.
+function applyForcedReturns() {
+  if (!STATE.repos.length) return;
+  STATE.repos.forEach(r => {
+    const forcedDate = addDays(r.fin, 2);
+    const agentObj = STATE.agents.find(a => a.nom === r.agent && a.actif);
+    if (!agentObj) return;
+    // Skip if agent is still on another leave on the forced date
+    if (isOnLeave(r.agent, forcedDate)) return;
+    const entry = STATE.planning.find(e => e.dateISO === forcedDate && !e.isPrev);
+    if (!entry) return;
+    // If agent is already assigned, just mark the entry
+    const alreadyAssigned = entry.agents.some(a => a.nom === agentObj.nom);
+    if (alreadyAssigned) {
+      entry.forcedReturn = true;
+      return;
+    }
+    // Replace the scheduled agent with the returning agent
+    entry.agents = [{ nom: agentObj.nom, matricule: agentObj.matricule, officiel: true, remplacePar: null, motifEchange: 'Retour congé (J+2)' }];
+    entry.forcedReturn = true;
+  });
+}
+
+// R01/R05: Get the duty agent starting from cycleIdx, skipping unavailables
+function getDutyAgentIdx(cycleIdx, dateISO, agents, recupMap) {
+  const n = agents.length;
+  for (let i = 0; i < n; i++) {
+    const idx = (cycleIdx + i) % n;
+    const agent = agents[idx];
+    if (isAvailable(agent.nom, dateISO, recupMap)) {
+      return idx;
+    }
+  }
+  // All unavailable — fallback to cycleIdx.
+  // Agent at cycleIdx will be assigned even though marked unavailable; admin should review.
+  console.warn('[Planning] All agents unavailable on ' + dateISO + ', assigning agent at index ' + cycleIdx + ' despite unavailability');
+  showToast(t('allUnavailableToast').replace('%s', dateISO), 'warning');
+  return cycleIdx;
+}
+
+// R07: Is this day a "semaine" day?
+function isSemaineDay(dow) { return dow >= 1 && dow <= 5; }
+function isWeekendDay(dow) { return dow === 0 || dow === 6; }
+
+// Core planning generation
+// Returns array of planning entries for daysCount days starting from startISO
+// initialCycleState = { mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend }
+function generatePlanning(startISO, daysCount, cycleState, agents) {
+  const plan = [];
+  const recupMap = {};
+  let { mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend } = cycleState;
+  const n = agents.length;
+  if (n === 0) return [];
+
+  for (let i = 0; i < daysCount; i++) {
+    const dateISO = addDays(startISO, i);
+    const dow = dowOf(dateISO);
+
+    // Determine which cycle index to use
+    let idx;
+    if (mode === 'WEEK') {
+      idx = isSemaineDay(dow) ? cycleIndexSemaine : cycleIndexWeekend;
+    } else {
+      idx = cycleIndex;
+    }
+
+    // Find available agent (R01/R05)
+    const dutyIdx = getDutyAgentIdx(idx, dateISO, agents, recupMap);
+    const agent = agents[dutyIdx];
+
+    // Create entry
+    const entry = {
+      dateISO,
+      date: formatDate(dateISO),
+      jour: JOURS_FR[dow],
+      jourAr: JOURS_AR[dow],
+      dow,
+      agents: [{ nom: agent.nom, matricule: agent.matricule, officiel: true, remplacePar: null, motifEchange: '' }],
+      obs: '', obsAr: '',
+      isWeekend: isWeekend(dateISO),
+      isPrev: false,
+      modified: false, modifiedBy: '', modifMotif: '', modifDate: ''
+    };
+    plan.push(entry);
+
+    // Add recovery for this duty agent
+    const recupDate = getRecupISO(dateISO);
+    if (!recupMap[recupDate]) recupMap[recupDate] = new Set();
+    recupMap[recupDate].add(agent.nom);
+
+    // Advance cycle: next agent after dutyIdx (R01)
+    const nextIdx = (dutyIdx + 1) % n;
+    if (mode === 'WEEK') {
+      if (isSemaineDay(dow)) cycleIndexSemaine = nextIdx;
+      else cycleIndexWeekend = nextIdx;
+    } else {
+      cycleIndex = nextIdx;
+    }
+  }
+
+  return plan;
+}
+
+// Calculate cycle state from prevTours array
+// prevTours: new format [{dateISO, agents:[{nom,matricule}], obs}]
+//         or old flat format [{dateISO, agentNom, matricule}] (for backward compat)
+// Returns { cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO }
+function calcCycleFromPrev(prevTours, agents, mode) {
+  if (!prevTours.length) return { cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextStartISO: todayISO() };
+  const n = agents.length;
+
+  // Normalize to flat format: [{dateISO, agentNom, matricule}]
+  const flat = [];
+  prevTours.forEach(r => {
+    if (Array.isArray(r.agents)) {
+      r.agents.forEach(a => flat.push({ dateISO: r.dateISO, agentNom: a.nom, matricule: a.matricule || 0 }));
+    } else if (r.agentNom) {
+      flat.push({ dateISO: r.dateISO, agentNom: r.agentNom, matricule: r.matricule || 0 });
+    }
+  });
+  if (!flat.length) return { cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextStartISO: todayISO() };
+
+  const sorted = flat.sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+
+  // For each day in prevTours, determine what the next cycle index should be
+  // Group by date to handle doubles (R06)
+  const byDate = {};
+  sorted.forEach(pt => {
+    if (!byDate[pt.dateISO]) byDate[pt.dateISO] = [];
+    byDate[pt.dateISO].push(pt);
+  });
+
+  let cycleIndex = 0;
+  let cycleIndexSemaine = 0;
+  let cycleIndexWeekend = 0;
+
+  const dates = Object.keys(byDate).sort();
+  let lastDate = dates[dates.length-1];
+
+  dates.forEach(dateISO => {
+    const entries = byDate[dateISO];
+    const dow = dowOf(dateISO);
+
+    if (entries.length === 1) {
+      // Single agent: next is dutyIdx+1
+      const agentNom = entries[0].agentNom || entries[0].nom;
+      const agentIdx = agents.findIndex(a => a.nom === agentNom);
+      const dutyIdx = agentIdx >= 0 ? agentIdx : 0;
+      const nextIdx = (dutyIdx + 1) % n;
+      if (mode === 'WEEK') {
+        if (isSemaineDay(dow)) cycleIndexSemaine = nextIdx;
+        else cycleIndexWeekend = nextIdx;
+      } else {
+        cycleIndex = nextIdx;
+      }
+    } else {
+      // R06 Multiple agents: youngest (max matricule) represents position
+      const youngest = entries.reduce((a,b) => (b.matricule||0) > (a.matricule||0) ? b : a);
+      const agentNom = youngest.agentNom || youngest.nom;
+      const agentIdx = agents.findIndex(a => a.nom === agentNom);
+      const dutyIdx = agentIdx >= 0 ? agentIdx : 0;
+      const nextIdx = (dutyIdx + 1) % n;
+      if (mode === 'WEEK') {
+        if (isSemaineDay(dow)) cycleIndexSemaine = nextIdx;
+        else cycleIndexWeekend = nextIdx;
+      } else {
+        cycleIndex = nextIdx;
+      }
+    }
+  });
+
+  const nextStartISO = addDays(lastDate, 1);
+  return { cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO };
+}
+
+// ════════════════════════════════════════════════════════════
+// CYCLE ROTATION — buildCycleFromPrevTours / getNextAgentInCycle
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Builds the ordered rotation cycle from prevTours history.
+ * Rules:
+ *  - Only the LAST appearance of each agent determines their position.
+ *  - Multiple agents on the same day are ordered by descending matricule.
+ *  - Only active agents are included.
+ * @param {Array} prevTours - [{dateISO, agents:[{nom,matricule}], obs}]
+ * @param {Array} allAgents - Full agents list (used to filter active ones)
+ * @returns {Array} Ordered cycle [{nom, matricule}]
+ */
+function buildCycleFromPrevTours(prevTours, allAgents) {
+  const activeAgents = (allAgents || STATE.agents).filter(a => a.actif);
+  if (!prevTours || prevTours.length === 0) {
+    return activeAgents.sort((a, b) => a.matricule - b.matricule);
+  }
+
+  // STEP 1: Find last appearance date for each agent
+  const lastAppearance = {};
+  prevTours.forEach(tour => {
+    (tour.agents || []).forEach(agent => {
+      lastAppearance[agent.nom] = tour.dateISO;
+    });
+  });
+  console.log('[Cycle] Dernières apparitions:', lastAppearance);
+
+  // STEP 2: Build cycle chronologically (oldest → newest)
+  const cycle = [];
+  const processed = new Set();
+  const sortedTours = [...prevTours].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+
+  sortedTours.forEach(tour => {
+    // Sort agents by descending matricule for this day
+    const tourAgents = (tour.agents || []).slice().sort((a, b) => b.matricule - a.matricule);
+    tourAgents.forEach(agent => {
+      const isLastAppearance = lastAppearance[agent.nom] === tour.dateISO;
+      const notYetAdded = !processed.has(agent.nom);
+      if (isLastAppearance && notYetAdded) {
+        // Only include active agents
+        const agentData = activeAgents.find(a => a.nom === agent.nom);
+        if (agentData) {
+          cycle.push({ nom: agent.nom, matricule: agentData.matricule });
+          processed.add(agent.nom);
+        }
+      }
+    });
+  });
+
+  console.log('[Cycle] Cycle construit:', cycle.map((a, i) => (i + 1) + '. ' + a.nom + ' (' + a.matricule + ')'));
+  return cycle;
+}
+
+/**
+ * Returns the next agent in the rotation cycle after lastAgentName.
+ * Wraps around to the start of the cycle.
+ * @param {Array} cycle - Ordered cycle [{nom, matricule}]
+ * @param {String} lastAgentName - Name of the last agent on duty
+ * @returns {Object|null} Next agent {nom, matricule}
+ */
+function getNextAgentInCycle(cycle, lastAgentName) {
+  if (!cycle || cycle.length === 0) return null;
+  const currentIndex = cycle.findIndex(a => a.nom === lastAgentName);
+  if (currentIndex === -1) return cycle[0];
+  return cycle[(currentIndex + 1) % cycle.length];
+}
+
+// ════════════════════════════════════════════════════════════
+// PLANNING MERGE: combine prevTours + generated future
+// ════════════════════════════════════════════════════════════
+function buildFullPlanning(prevToursRows, agents, mode) {
+  const sorted = getActiveSorted();
+  if (!sorted.length) return [];
+
+  // Convert prevTours rows to planning entries
+  // Support both new format [{dateISO, agents:[{nom,matricule,officiel}], obs}]
+  // and old flat format [{dateISO, agentNom, matricule, obs}]
+  const prevEntries = [];
+  const byDate = {};
+  prevToursRows.forEach(r => {
+    if (!r.dateISO) return;
+    if (!byDate[r.dateISO]) byDate[r.dateISO] = [];
+    if (Array.isArray(r.agents)) {
+      r.agents.forEach(a => {
+        const agentObj = getAgentByName(a.nom);
+        byDate[r.dateISO].push({
+          nom: a.nom,
+          matricule: agentObj ? agentObj.matricule : (a.matricule || 0),
+          officiel: a.officiel !== false,
+          remplacePar: null,
+          motifEchange: ''
+        });
+      });
+    } else if (r.agentNom) {
+      const agentObj = getAgentByName(r.agentNom);
+      byDate[r.dateISO].push({
+        nom: r.agentNom,
+        matricule: agentObj ? agentObj.matricule : (r.matricule || 0),
+        officiel: true,
+        remplacePar: null,
+        motifEchange: ''
+      });
+    }
+  });
+  Object.keys(byDate).sort().forEach(dateISO => {
+    if (!byDate[dateISO].length) return;
+    const dow = dowOf(dateISO);
+    const obs = (prevToursRows.find(r => r.dateISO === dateISO) || {}).obs || '';
+    prevEntries.push({
+      dateISO, date: formatDate(dateISO),
+      jour: JOURS_FR[dow], jourAr: JOURS_AR[dow], dow,
+      agents: byDate[dateISO],
+      obs, obsAr: '', isWeekend: isWeekend(dateISO),
+      isPrev: true, modified: false, modifiedBy: '', modifMotif: '', modifDate: ''
+    });
+  });
+  prevEntries.sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+
+  let cycleAgents, cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO;
+
+  if (mode === 'WEEK') {
+    // Keep existing index-based logic for WEEK mode
+    cycleAgents = sorted;
+    ({ cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO } = calcCycleFromPrev(prevToursRows, sorted, mode));
+  } else {
+    // New cycle-based approach for CONTINU mode
+    cycleAgents = buildCycleFromPrevTours(prevToursRows, STATE.agents);
+    if (!cycleAgents.length) cycleAgents = sorted;
+    const sortedPrev = [...prevToursRows].filter(r => r.dateISO).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+    nextStartISO = sortedPrev.length > 0 ? addDays(sortedPrev[sortedPrev.length - 1].dateISO, 1) : todayISO();
+    cycleIndex = 0;
+    cycleIndexSemaine = 0;
+    cycleIndexWeekend = 0;
+    console.log('[Cycle] Départ planning futur depuis index 0 (' + (cycleAgents[0] ? cycleAgents[0].nom : '?') + ') le ' + nextStartISO);
+  }
+
+  // Generate 1 year from nextStartISO
+  const futureEntries = generatePlanning(nextStartISO, 365, {
+    mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
+  }, cycleAgents);
+
+  return [...prevEntries, ...futureEntries];
+}
+
+// Rebuild future planning from a given date (for recalculation after changes)
+function rebuildFrom(fromISO) {
+  const agents = getActiveSorted();
+  if (!agents.length) return;
+
+  // Keep entries before fromISO
+  const before = STATE.planning.filter(e => e.dateISO < fromISO);
+
+  const mode = STATE.settings.mode;
+  let cycleAgents, cycleIndex, cycleIndexSemaine, cycleIndexWeekend;
+
+  if (mode === 'WEEK') {
+    // Keep existing index-based logic for WEEK mode
+    const prevForCalc = [];
+    STATE.prevTours.forEach(r => {
+      if (r.dateISO >= fromISO) return;
+      if (Array.isArray(r.agents)) {
+        r.agents.forEach(a => prevForCalc.push({ dateISO: r.dateISO, agentNom: a.nom, matricule: a.matricule || 0 }));
+      } else if (r.agentNom) {
+        prevForCalc.push({ dateISO: r.dateISO, agentNom: r.agentNom, matricule: r.matricule || 0 });
+      }
+    });
+    before.forEach(e => {
+      if (e.isPrev || e.dateISO < fromISO) {
+        e.agents.filter(a => a.officiel).forEach(a => {
+          prevForCalc.push({ dateISO: e.dateISO, agentNom: a.nom, matricule: a.matricule });
+        });
+      }
+    });
+    const seen = new Set();
+    const deduped = prevForCalc.filter(r => {
+      const key = r.dateISO + r.agentNom;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    ({ cycleIndex, cycleIndexSemaine, cycleIndexWeekend } = calcCycleFromPrev(deduped, agents, mode));
+    cycleAgents = agents;
+  } else {
+    // New cycle-based approach for CONTINU mode
+    cycleAgents = buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
+    if (!cycleAgents.length) cycleAgents = agents;
+    // Find the last official agent before fromISO to determine cycle position
+    const lastBefore = before
+      .filter(e => e.agents.some(a => a.officiel))
+      .sort((a, b) => b.dateISO.localeCompare(a.dateISO))[0];
+    const lastAgentNom = lastBefore ? (lastBefore.agents.find(a => a.officiel) || {}).nom : null;
+    const nextAgent = getNextAgentInCycle(cycleAgents, lastAgentNom);
+    cycleIndex = nextAgent ? cycleAgents.findIndex(a => a.nom === nextAgent.nom) : 0;
+    if (cycleIndex < 0) cycleIndex = 0;
+    cycleIndexSemaine = 0;
+    cycleIndexWeekend = 0;
+    console.log('[Cycle] rebuildFrom ' + fromISO + ': dernier=' + lastAgentNom + ', prochain=' + (nextAgent ? nextAgent.nom : '?') + ' (index ' + cycleIndex + ')');
+  }
+
+  const future = generatePlanning(fromISO, 365, {
+    mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
+  }, cycleAgents);
+
+  STATE.planning = [...before, ...future];
+  applyForcedReturns();
+  STATE.settings.nextGenDate = fromISO;
+  saveState();
+}
+
+// Get planning entry for a date
+function getPlanEntry(dateISO) {
+  return STATE.planning.find(e => e.dateISO === dateISO);
+}
+
+// Get next N agents in rotation from current position
+function getNextInRotation(n) {
+  const mode = STATE.settings.mode;
+  let agents;
+  if (mode === 'WEEK') {
+    agents = getActiveSorted();
+  } else {
+    agents = buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
+    if (!agents.length) agents = getActiveSorted();
+  }
+  if (!agents.length) return [];
+
+  // Determine starting index from first upcoming planning entry
+  let idx = 0;
+  const future = STATE.planning.filter(e => !e.isPrev && e.dateISO >= todayISO()).sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+  if (future.length > 0) {
+    const lastAgent = future[0].agents.find(a => a.officiel);
+    if (lastAgent) {
+      const ai = agents.findIndex(a => a.nom === lastAgent.nom);
+      if (ai >= 0) idx = (ai + 1) % agents.length;
+    }
+  }
+
+  const result = [];
+  for (let i = 0; i < n; i++) {
+    result.push(agents[(idx + i) % agents.length]);
+  }
+  return result;
+}
+
+// Agent stats
+function calcAgentStats() {
+  const stats = {};
+  STATE.agents.forEach(a => {
+    stats[a.nom] = { nom: a.nom, matricule: a.matricule, total: 0, semaine: 0, weekend: 0, doubles: 0, replacements: 0, lastPerm: null, nextPerm: null };
+  });
+  const today = todayISO();
+  STATE.planning.forEach(entry => {
+    entry.agents.forEach(a => {
+      if (!a.officiel && !a.remplacePar) return; // skip unofficial non-replacements tracking
+      const key = a.nom;
+      if (!stats[key]) stats[key] = { nom: a.nom, matricule: 0, total:0, semaine:0, weekend:0, doubles:0, replacements:0, lastPerm:null, nextPerm:null };
+      if (a.officiel) {
+        stats[key].total++;
+        if (entry.isWeekend) stats[key].weekend++;
+        else stats[key].semaine++;
+        if (entry.agents.filter(x => x.officiel).length > 1) stats[key].doubles++;
+        if (entry.dateISO <= today) {
+          if (!stats[key].lastPerm || entry.dateISO > stats[key].lastPerm) stats[key].lastPerm = entry.dateISO;
+        } else {
+          if (!stats[key].nextPerm || entry.dateISO < stats[key].nextPerm) stats[key].nextPerm = entry.dateISO;
+        }
+      } else if (a.remplacePar) {
+        // Count as replacement for remplacePar
+        if (!stats[a.remplacePar]) stats[a.remplacePar] = { nom:a.remplacePar, matricule:0, total:0, semaine:0, weekend:0, doubles:0, replacements:0, lastPerm:null, nextPerm:null };
+        stats[a.remplacePar].replacements++;
+      }
+    });
+  });
+  return stats;
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB NAVIGATION
+// ════════════════════════════════════════════════════════════
+function switchTab(n) {
+  STATE.currentTab = n;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', parseInt(t.dataset.tab) === n));
+  // Show/hide sidebar
+  const sidebar = document.getElementById('appSidebar');
+  if (sidebar) sidebar.style.display = n === 1 ? 'flex' : 'none';
+  if (sidebar) sidebar.style.flexDirection = 'column';
+  renderCurrentTab();
+}
+
+function renderCurrentTab() {
+  const ca = document.getElementById('contentArea');
+  if (!ca) return;
+  switch(STATE.currentTab) {
+    case 1: renderTab1(); break;
+    case 2: renderTab2(); break;
+    case 3: renderTab3(); break;
+    case 4: renderTab4(); break;
+    case 5: renderTab5(); break;
+    case 6: renderTab6(); break;
+    case 7: renderTab7(); break;
+    case 8: renderTab8(); break;
+    case 9: renderTab9(); break;
+  }
+  applyLang();
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB 1 — ACCUEIL
+// ════════════════════════════════════════════════════════════
+function renderTab1() {
+  const ca = document.getElementById('contentArea');
+  const today = todayISO();
+  const todayEntry = getPlanEntry(today);
+  const agents = getActiveSorted();
+  const modeBadge = document.getElementById('modeBadge');
+  if (modeBadge) modeBadge.textContent = STATE.settings.mode === 'WEEK' ? t('modeWeek') : t('modeContinu');
+
+  // Today's permanencier
+  let todayAgent = '—';
+  if (todayEntry && todayEntry.agents.length) {
+    todayAgent = todayEntry.agents.filter(a => a.officiel).map(a => {
+      const eff = a.remplacePar || a.nom;
+      return eff + (a.remplacePar ? ' (' + t('officiel') + ': ' + a.nom + ')' : '');
+    }).join(', ');
+  }
+
+  // Banner
+  let bannerHTML = '<div class="banner-card">';
+  bannerHTML += '<div class="banner-item"><div class="val">📅</div><div class="lbl">' + formatDate(today) + '</div><div class="lbl">' + jourFR(today) + '</div></div>';
+  bannerHTML += '<div class="banner-divider"></div>';
+  bannerHTML += '<div class="banner-item"><div class="val" style="font-size:1rem">' + (todayEntry ? todayEntry.agents.filter(a=>a.officiel).map(a=>a.nom).join(', ') : '—') + '</div><div class="lbl">' + t('todayPerm') + '</div></div>';
+  bannerHTML += '<div class="banner-divider"></div>';
+  bannerHTML += '<div class="banner-item"><div class="val">' + (STATE.settings.mode === 'WEEK' ? '📆' : '🔄') + '</div><div class="lbl">' + (STATE.settings.mode === 'WEEK' ? t('modeWeek') : t('modeContinu')) + '</div></div>';
+  bannerHTML += '<div class="banner-divider"></div>';
+  bannerHTML += '<div class="banner-item"><div class="val">' + agents.length + '</div><div class="lbl">' + t('activeAgents') + '</div></div>';
+  bannerHTML += '</div>';
+
+  // Next 18 days cards
+  const next18 = [];
+  for (let i = -DAYS_BEFORE_TODAY; i < DAYS_AHEAD; i++) {
+    const d = addDays(today, i);
+    const entry = getPlanEntry(d);
+    next18.push({ dateISO: d, entry, isPast: i < 0 });
+  }
+
+  let cardsHTML = '<div class="section-title"><span class="icon">📋</span>' + t('next18') + '</div>';
+  cardsHTML += '<div class="day-cards-grid">';
+  next18.forEach(({ dateISO, entry, isPast }) => {
+    if (!entry && !isPast) return;
+    const classes = ['day-card'];
+    if (dateISO === today) classes.push('today');
+    else if (isWeekend(dateISO)) classes.push('weekend');
+    if (isPast || (entry && entry.isPrev)) classes.push('prev');
+
+    const agentList = entry ? entry.agents.filter(a => a.officiel) : [];
+    const isDouble = agentList.length > 1;
+    if (isDouble) classes.push('double');
+    const hasReplace = agentList.some(a => a.remplacePar);
+
+    // Recovery badge
+    const recupMap = getRecupSet(STATE.planning.slice(0, STATE.planning.length));
+    const inRecup = agents.some(a => recupMap[dateISO] && recupMap[dateISO].has(a.nom));
+
+    let badges = '';
+    if (dateISO === today) badges += '<span class="badge badge-today">' + t('today') + '</span>';
+    if (isWeekend(dateISO)) badges += '<span class="badge badge-we">WE</span>';
+    if (isDouble) badges += '<span class="badge badge-double">' + t('double') + '</span>';
+    if (hasReplace) badges += '<span class="badge badge-remplace">Remplacé</span>';
+    if (isPast || (entry && entry.isPrev)) badges += '<span class="badge badge-prev">Préc.</span>';
+
+    const mainAgent = agentList.length ? agentList[0] : null;
+    const agentObj = mainAgent ? getAgentByName(mainAgent.nom) : null;
+    const displayNom = mainAgent ? (mainAgent.remplacePar || mainAgent.nom) : '—';
+
+    cardsHTML += '<div class="' + classes.join(' ') + '" onclick="showDayDetail(\'' + dateISO + '\')">';
+    cardsHTML += '<div class="day-card-date">' + formatDate(dateISO) + '</div>';
+    cardsHTML += '<div class="day-card-day">' + JOURS_FR[dowOf(dateISO)] + (STATE.lang === 'ar' ? ' / ' + JOURS_AR[dowOf(dateISO)] : '') + '</div>';
+    if (mainAgent) {
+      cardsHTML += renderAvatar(agentObj, 'card');
+      cardsHTML += '<div class="day-card-name">' + displayNom + '</div>';
+      if (mainAgent.remplacePar) cardsHTML += '<div class="day-card-mat text-danger" style="font-size:.68rem">✓ Off: ' + mainAgent.nom + '</div>';
+      else cardsHTML += '<div class="day-card-mat">' + (agentObj ? agentObj.matricule : '') + '</div>';
+    } else {
+      cardsHTML += '<div class="day-card-avatar" style="background:#ccc">?</div>';
+      cardsHTML += '<div class="day-card-name">—</div>';
+    }
+    cardsHTML += '<div class="day-card-badges">' + badges + '</div>';
+    cardsHTML += '</div>';
+  });
+  cardsHTML += '</div>';
+
+  // Planning table (next 30 days)
+  const tableEntries = STATE.planning.filter(e => e.dateISO >= addDays(today,-3) && e.dateISO <= addDays(today,30)).sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+  const recupMapFull = getRecupSet(STATE.planning);
+  let tableHTML = '<div class="section-title"><span class="icon">📊</span>Planning détaillé</div>';
+  tableHTML += '<div class="table-container"><table><thead><tr>';
+  tableHTML += '<th>#</th><th>' + t('date') + '</th><th>' + t('jour') + '</th><th>Agent(s)</th><th>' + t('matricule') + '</th><th>' + t('type') + '</th><th>' + t('recuperation') + '</th><th>' + t('observation') + '</th>';
+  if (isAdmin()) tableHTML += '<th>' + t('actions') + '</th>';
+  tableHTML += '</tr></thead><tbody>';
+
+  tableEntries.forEach((entry, idx) => {
+    const classes = [];
+    if (entry.dateISO === today) classes.push('today-row');
+    else if (entry.isWeekend) classes.push('weekend-row');
+    if (entry.isPrev) classes.push('prev-row');
+
+    const agentList = entry.agents.filter(a => a.officiel);
+    const agentNames = agentList.map(a => a.remplacePar ? '<span class="text-danger" title="Officiel: ' + a.nom + '">' + a.remplacePar + ' ✓</span>' : a.nom).join(', ');
+    const mats = agentList.map(a => {
+      const ag = getAgentByName(a.nom);
+      return ag ? ag.matricule : '';
+    }).join(', ');
+    const recupDates = agentList.map(a => {
+      const rDate = getRecupISO(entry.dateISO);
+      return '<span class="badge badge-recup">' + formatDate(rDate) + '</span>';
+    }).join(' ');
+    const typeStr = entry.isPrev ? '<span class="badge badge-prev">Préc.</span>' : (entry.isWeekend ? '<span class="badge badge-we">WE</span>' : '<span class="badge badge-success">Sem.</span>');
+    const isDouble = agentList.length > 1;
+
+    tableHTML += '<tr class="' + classes.join(' ') + '">';
+    tableHTML += '<td>' + (idx+1) + '</td>';
+    tableHTML += '<td><strong>' + entry.date + '</strong></td>';
+    tableHTML += '<td>' + entry.jour + (STATE.lang==='ar' ? ' / '+entry.jourAr : '') + '</td>';
+    tableHTML += '<td>' + agentNames + (isDouble ? ' <span class="badge badge-double">Double</span>' : '') + '</td>';
+    tableHTML += '<td>' + mats + '</td>';
+    tableHTML += '<td>' + typeStr + '</td>';
+    tableHTML += '<td>' + (entry.isPrev ? '—' : recupDates) + '</td>';
+    tableHTML += '<td>' + (entry.obs || '') + '</td>';
+    if (isAdmin()) {
+      tableHTML += '<td><div class="table-actions">';
+      tableHTML += '<button class="btn btn-sm btn-outline" onclick="openModifyDay(\'' + entry.dateISO + '\')">✏️</button>';
+      tableHTML += '</div></td>';
+    }
+    tableHTML += '</tr>';
+  });
+  if (!tableEntries.length) {
+    tableHTML += '<tr><td colspan="9" class="empty-state"><p>' + t('noPlanning') + '</p></td></tr>';
+  }
+  tableHTML += '</tbody></table></div>';
+
+  // Header action buttons
+  let headerBtns = '<div class="flex flex-gap flex-wrap mb-2">';
+  headerBtns += '<button class="btn btn-primary btn-sm" onclick="exportPDF()">📄 ' + t('exportPDF') + '</button>';
+  headerBtns += '<button class="btn btn-success btn-sm" onclick="exportExcel()">📊 ' + t('exportExcel') + '</button>';
+  headerBtns += '<button class="btn btn-outline btn-sm" onclick="exportJSON()">💾 ' + t('saveJSON') + '</button>';
+  headerBtns += '<button class="btn btn-secondary btn-sm" onclick="triggerImportJSON()">📂 ' + t('importJSON') + '</button>';
+  headerBtns += '<input type="file" id="jsonFileInput" accept=".json" style="display:none" onchange="importJSONFile(this)">';
+  headerBtns += '</div>';
+
+  ca.innerHTML = headerBtns + bannerHTML + cardsHTML + tableHTML;
+
+  // Render sidebar
+  renderTab1Sidebar();
+}
+
+function renderTab1Sidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+  const today = todayISO();
+  const agents = getActiveSorted();
+  const recupMap = getRecupSet(STATE.planning.filter(e => e.dateISO >= addDays(today,-5) && e.dateISO <= addDays(today,5)));
+
+  // Next in rotation
+  let nextHTML = '<div class="sidebar-card"><div class="sidebar-card-header">🔄 ' + t('nextRotation') + '</div><div class="sidebar-card-body">';
+  const nextAgents = getNextInRotation(5);
+  nextAgents.forEach((a, i) => {
+    nextHTML += '<div class="sidebar-item">' + renderAvatar(a, 'sm');
+    nextHTML += '<div class="sidebar-item-info"><div class="sidebar-item-name">' + (i+1) + '. ' + a.nom + '</div>';
+    nextHTML += '<div class="sidebar-item-sub">' + a.matricule + '</div></div></div>';
+  });
+  nextHTML += '</div></div>';
+
+  // On leave
+  let leaveHTML = '<div class="sidebar-card"><div class="sidebar-card-header">🏖️ ' + t('onLeave') + '</div><div class="sidebar-card-body">';
+  const onLeaveNow = STATE.repos.filter(r => r.debut <= today && r.fin >= today);
+  if (onLeaveNow.length) {
+    onLeaveNow.forEach(r => {
+      const ag = getAgentByName(r.agent);
+      leaveHTML += '<div class="sidebar-item">' + renderAvatar(ag, 'sm');
+      leaveHTML += '<div class="sidebar-item-info"><div class="sidebar-item-name">' + r.agent + '</div>';
+      leaveHTML += '<div class="sidebar-item-sub">' + r.type + ' — jusqu\'au ' + formatDate(r.fin) + '</div></div></div>';
+    });
+  } else {
+    leaveHTML += '<div class="text-muted" style="padding:.5rem;font-size:.82rem">Aucun agent en absence</div>';
+  }
+  leaveHTML += '</div></div>';
+
+  // Alerts
+  let alertsHTML = '<div class="sidebar-card"><div class="sidebar-card-header">⚠️ ' + t('alerts') + '</div><div class="sidebar-card-body">';
+  const threshold = STATE.settings.alertThresholdDays || 30;
+  const stats = calcAgentStats();
+  let hasAlert = false;
+  Object.values(stats).forEach(s => {
+    if (!s.lastPerm) return;
+    const days = diffDays(s.lastPerm, today);
+    if (days > threshold) {
+      alertsHTML += '<div class="alert-item warn">⚠️ ' + s.nom + ': ' + days + ' ' + t('daysWithoutPerm') + '</div>';
+      hasAlert = true;
+    }
+  });
+  // Coming leaves next week
+  const nextWeek = addDays(today, 7);
+  const upcomingLeaves = STATE.repos.filter(r => r.debut > today && r.debut <= nextWeek);
+  upcomingLeaves.forEach(r => {
+    alertsHTML += '<div class="alert-item info">📅 ' + r.agent + ' en ' + r.type + ' le ' + formatDate(r.debut) + '</div>';
+    hasAlert = true;
+  });
+  if (!hasAlert) alertsHTML += '<div class="text-muted" style="padding:.5rem;font-size:.82rem">Aucune alerte</div>';
+  alertsHTML += '</div></div>';
+
+  sidebar.innerHTML = nextHTML + leaveHTML + alertsHTML;
+}
+
+function showDayDetail(dateISO) {
+  const entry = getPlanEntry(dateISO);
+  if (!entry) { showToast('Aucune donnée pour cette date', 'info'); return; }
+  const recupMap = getRecupSet(STATE.planning);
+
+  let html = '<div>';
+  html += '<p><strong>Date:</strong> ' + entry.date + ' — ' + entry.jour + '</p>';
+  html += '<p><strong>Type:</strong> ' + (entry.isWeekend ? 'Week-end' : 'Semaine') + (entry.isPrev ? ' (Précédent)' : '') + '</p>';
+  html += '<div class="divider"></div>';
+  entry.agents.forEach(a => {
+    const ag = getAgentByName(a.nom);
+    html += '<div class="flex items-center flex-gap mb-2">' + renderAvatar(ag,'sm');
+    html += '<div><strong>' + a.nom + '</strong> (' + (ag ? ag.matricule : '—') + ')';
+    if (a.remplacePar) html += ' <span class="badge badge-remplace">Remplacé par ' + a.remplacePar + '</span>';
+    if (a.motifEchange) html += ' <span class="badge badge-info">' + a.motifEchange + '</span>';
+    html += '</div></div>';
+    if (a.officiel && !entry.isPrev) {
+      const recupDate = getRecupISO(entry.dateISO);
+      html += '<p class="text-muted" style="font-size:.82rem;margin-left:2rem">Récup: <span class="badge badge-recup">' + formatDate(recupDate) + '</span></p>';
+    }
+  });
+  if (entry.obs) { html += '<div class="divider"></div><p><strong>Observation:</strong> ' + entry.obs + '</p>'; }
+  html += '</div>';
+
+  let footer = '';
+  if (isAdmin()) {
+    footer = '<button class="btn btn-warning" onclick="closeModal();openModifyDay(\'' + dateISO + '\')">✏️ Modifier</button>';
+  }
+  openModal('📋 Détail du ' + entry.date, html, footer);
+}
+
+function openModifyDay(dateISO) {
+  if (!isAdmin()) { showToast('Accès refusé', 'error'); return; }
+  const entry = getPlanEntry(dateISO);
+  const agents = getActiveSorted();
+
+  let html = '<div class="form-group"><label>Date</label><input class="form-control" value="' + formatDate(dateISO) + '" readonly></div>';
+  html += '<div class="form-group"><label>Agent(s) officiel(s)</label>';
+  const currentAgents = entry ? entry.agents.filter(a => a.officiel).map(a => a.nom) : [];
+
+  agents.forEach(a => {
+    const checked = currentAgents.includes(a.nom) ? 'checked' : '';
+    html += '<label class="form-check"><input type="checkbox" name="modAgent" value="' + a.nom + '" ' + checked + '> ' + a.nom + ' (' + a.matricule + ')</label>';
+  });
+  html += '</div>';
+  html += '<div class="form-group"><label>' + t('observation') + '</label><textarea class="form-control" id="modObs">' + (entry ? (entry.obs || '') : '') + '</textarea></div>';
+  html += '<div class="form-group"><label>Motif de modification <span class="text-danger">*</span></label><input class="form-control" id="modMotif" placeholder="Motif obligatoire" required></div>';
+
+  const footer = '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button>' +
+    '<button class="btn btn-primary" onclick="confirmModifyDay(\'' + dateISO + '\')">Enregistrer</button>';
+  openModal('✏️ Modifier le ' + formatDate(dateISO), html, footer, 'modal-lg');
+}
+
+function confirmModifyDay(dateISO) {
+  const motif = document.getElementById('modMotif').value.trim();
+  if (!motif) { showToast('Motif obligatoire', 'error'); return; }
+
+  const checked = document.querySelectorAll('input[name=modAgent]:checked');
+  const selectedAgents = Array.from(checked).map(c => c.value);
+  if (!selectedAgents.length) { showToast('Sélectionnez au moins un agent', 'error'); return; }
+
+  const obs = document.getElementById('modObs').value;
+  const entry = getPlanEntry(dateISO);
+  const oldVal = entry ? JSON.stringify(entry.agents) : 'N/A';
+
+  const agentObjs = selectedAgents.map(nom => {
+    const ag = getAgentByName(nom);
+    return { nom, matricule: ag ? ag.matricule : 0, officiel: true, remplacePar: null, motifEchange: '' };
+  });
+
+  if (entry) {
+    const old = { agents: JSON.parse(JSON.stringify(entry.agents)), obs: entry.obs };
+    entry.agents = agentObjs;
+    entry.obs = obs;
+    entry.modified = true;
+    entry.modifiedBy = STATE.currentUser.login;
+    entry.modifMotif = motif;
+    entry.modifDate = formatDateTime(new Date());
+    addLog('modification', dateISO, old, { agents: agentObjs, obs }, motif);
+  } else {
+    // New entry
+    const dow = dowOf(dateISO);
+    const newEntry = {
+      dateISO, date: formatDate(dateISO), jour: JOURS_FR[dow], jourAr: JOURS_AR[dow], dow,
+      agents: agentObjs, obs, isWeekend: isWeekend(dateISO),
+      isPrev: false, modified: true, modifiedBy: STATE.currentUser.login,
+      modifMotif: motif, modifDate: formatDateTime(new Date())
+    };
+    STATE.planning.push(newEntry);
+    STATE.planning.sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+    addLog('modification', dateISO, {}, { agents: agentObjs, obs }, motif);
+  }
+
+  saveState();
+  closeModal();
+  showToast('Modification enregistrée', 'success');
+  renderCurrentTab();
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB 2 — TOURS PRÉCÉDENTS
+// ════════════════════════════════════════════════════════════
+function renderTab2() {
+  const ca = document.getElementById('contentArea');
+  const agents = getActiveSorted();
+
+  let html = '<div class="section-title"><span class="icon">📋</span>' + t('tab2') + '</div>';
+
+  // Period selection
+  const today = todayISO();
+  const defaultStart = addDays(today, -30);
+  html += '<div class="card mb-2"><div class="card-body">';
+  html += '<div class="form-row">';
+  html += '<div class="form-group"><label>' + t('periodFrom') + '</label><input type="date" class="form-control" id="prevStart" value="' + defaultStart + '"></div>';
+  html += '<div class="form-group"><label>' + t('periodTo') + '</label><input type="date" class="form-control" id="prevEnd" value="' + today + '"></div>';
+  html += '</div>';
+  html += '<div class="flex flex-gap">';
+  html += '<button class="btn btn-primary" onclick="createPrevGrid()">' + t('createGrid') + '</button>';
+  if (STATE.prevTours.length > 0) html += '<button class="btn btn-outline" onclick="loadExistingPrevTours()">📂 Charger existant</button>';
+  if (isAdmin() && STATE.prevTours.length > 0) html += '<button class="btn btn-success" onclick="validateAndGenerate()">✅ ' + t('validateGen') + '</button>';
+  html += '</div>';
+  html += '</div></div>';
+
+  // Grid (if exists)
+  if (_prevToursPage.rows.length > 0) {
+    html += renderPrevToursGrid();
+  } else if (STATE.prevTours.length > 0) {
+    html += '<div class="alert-item info" style="margin-top:.5rem">📋 ' + STATE.prevTours.length + ' jours précédents enregistrés. Cliquez "Charger existant" pour modifier.</div>';
+  }
+
+  // Result banner if planning exists
+  if (STATE.planning.length > 0) {
+    const firstFuture = STATE.planning.filter(e => !e.isPrev).sort((a,b) => a.dateISO.localeCompare(b.dateISO))[0];
+    if (firstFuture) {
+      const ag = firstFuture.agents.find(a => a.officiel);
+      html += '<div class="result-banner mt-2">';
+      html += '<h3>🎯 ' + t('nextPerm') + ': <strong>' + (ag ? ag.nom : '—') + '</strong> (' + (ag ? ag.matricule : '') + ') — ' + t('startingFrom') + ' ' + firstFuture.date + '</h3>';
+      const rOrder = STATE.settings.mode === 'WEEK' ? getActiveSorted() : buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
+      html += '<p>Ordre de rotation:</p><div class="rotation-list">';
+      rOrder.forEach((a, i) => {
+        const isCur = ag && a.nom === ag.nom;
+        html += '<span class="rotation-chip' + (isCur ? ' current' : '') + '">' + (i+1) + '. ' + a.nom + '</span>';
+      });
+      html += '</div></div>';
+    }
+  }
+
+  ca.innerHTML = html;
+}
+
+function createPrevGrid() {
+  const start = document.getElementById('prevStart').value;
+  const end = document.getElementById('prevEnd').value;
+  if (!start || !end || start > end) { showToast('Période invalide', 'error'); return; }
+
+  const rows = [];
+  let cur = start;
+  while (cur <= end) {
+    // Find existing prev tour for this date
+    const existing = STATE.prevTours.find(r => r.dateISO === cur);
+    rows.push({
+      dateISO: cur,
+      agents: existing ? (existing.agents || []).map(a => a.nom) : [],
+      obs: existing ? (existing.obs || '') : ''
+    });
+    cur = addDays(cur, 1);
+  }
+  _prevToursPage.start = start;
+  _prevToursPage.end = end;
+  _prevToursPage.rows = rows;
+  renderTab2();
+}
+
+function loadExistingPrevTours() {
+  if (!STATE.prevTours.length) return;
+  const sorted = [...STATE.prevTours].sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+  if (sorted.length) {
+    _prevToursPage.start = sorted[0].dateISO;
+    _prevToursPage.end = sorted[sorted.length-1].dateISO;
+    _prevToursPage.rows = sorted.map(r => ({ dateISO: r.dateISO, agents: (r.agents || []).map(a => a.nom), obs: r.obs || '' }));
+    renderTab2();
+  }
+}
+
+function renderPrevToursGrid() {
+  const agents = getActiveSorted();
+  const rows = _prevToursPage.rows;
+  const counters = {};
+  agents.forEach(a => { counters[a.nom] = 0; });
+  rows.forEach(r => { (r.agents || []).forEach(nom => { if (nom && counters[nom] !== undefined) counters[nom]++; }); });
+
+  let html = '<div class="card"><div class="card-header"><span class="card-title">Grille des tours précédents (' + rows.length + ' jours)</span>';
+  if (isAdmin()) {
+    html += '<div class="flex flex-gap">';
+    html += '<button class="btn btn-sm btn-outline" onclick="autoFillPrevTours()">🤖 ' + t('autoEntry') + '</button>';
+    html += '<button class="btn btn-sm btn-success" onclick="validateAndGenerate()">✅ ' + t('validateGen') + '</button>';
+    html += '</div>';
+  }
+  html += '</div><div class="card-body" style="padding:0">';
+  html += '<div class="table-container"><table class="prev-tours-table"><thead><tr>';
+  html += '<th>#</th><th>Date</th><th>Jour</th><th>Agent(s)</th><th>Observation</th>';
+  if (isAdmin()) html += '<th>✕</th>';
+  html += '</tr></thead><tbody id="prevToursBody">';
+
+  rows.forEach((row, idx) => {
+    const dow = dowOf(row.dateISO);
+    const isWE = isWeekend(row.dateISO);
+    const rowAgents = row.agents || [];
+    html += '<tr class="' + (isWE ? 'weekend-row' : '') + '" id="prevRow_' + idx + '">';
+    html += '<td>' + (idx+1) + '</td>';
+    html += '<td><strong>' + formatDate(row.dateISO) + '</strong></td>';
+    html += '<td>' + JOURS_FR[dow] + '</td>';
+    html += '<td>';
+    // Display current agents as badges
+    html += '<div class="prev-agent-badges">';
+    rowAgents.forEach((nom, agentIdx) => {
+      if (!nom) return;
+      if (isAdmin()) {
+        html += '<span class="prev-agent-badge">' + escHtml(nom) + '<span class="remove-badge" onclick="removePrevRowAgent(' + idx + ',' + agentIdx + ')">×</span></span>';
+      } else {
+        html += '<span class="prev-agent-badge">' + escHtml(nom) + '</span>';
+      }
+    });
+    if (isAdmin()) {
+      html += '<button class="btn btn-sm btn-outline" style="padding:.15rem .5rem;font-size:.75rem" onclick="openQuickEntry(' + idx + ',\'' + row.dateISO + '\')">⚡ ' + (rowAgents.length ? 'Modifier' : 'Ajouter') + '</button>';
+    }
+    html += '</div>';
+    html += '</td>';
+    html += '<td><input class="form-control" style="padding:.3rem" placeholder="Observation..." value="' + (row.obs||'') + '" oninput="setPrevObs('+idx+',this.value)"' + (isAdmin() ? '' : ' disabled') + '></td>';
+    if (isAdmin()) {
+      html += '<td><button class="btn btn-sm btn-danger" onclick="clearPrevRow(' + idx + ')">✕</button></td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // Mini-counters
+  html += '<div class="mini-counters" style="padding:.7rem">';
+  agents.forEach(a => {
+    html += '<div class="mini-counter">' + a.nom + ': <span class="cnt">' + (counters[a.nom]||0) + '</span></div>';
+  });
+  html += '</div>';
+  html += '</div></div>';
+  return html;
+}
+
+function setPrevAgent(idx, val) {
+  if (_prevToursPage.rows[idx] !== undefined) {
+    // Legacy: set single agent (used by autoFill)
+    _prevToursPage.rows[idx].agents = val ? [val] : [];
+  }
+}
+function removePrevRowAgent(rowIdx, agentIdx) {
+  const row = _prevToursPage.rows[rowIdx];
+  if (row && row.agents) {
+    row.agents.splice(agentIdx, 1);
+    renderTab2();
+  }
+}
+function setPrevObs(idx, val) {
+  if (_prevToursPage.rows[idx] !== undefined) {
+    _prevToursPage.rows[idx].obs = val;
+  }
+}
+function clearPrevRow(idx) {
+  if (_prevToursPage.rows[idx] !== undefined) {
+    _prevToursPage.rows[idx].agents = [];
+    _prevToursPage.rows[idx].obs = '';
+    renderTab2();
+  }
+}
+
+function autoFillPrevTours() {
+  const agents = getActiveSorted();
+  if (!agents.length) return;
+  let idx = 0;
+  _prevToursPage.rows.forEach(row => {
+    if (!row.agents || !row.agents.length) {
+      row.agents = [agents[idx % agents.length].nom];
+    }
+    idx++;
+  });
+  renderTab2();
+}
+
+function openQuickEntry(rowIdx, dateISO) {
+  _quickEntryDate = dateISO;
+  _quickEntryRow = rowIdx;
+  const agents = getActiveSorted();
+  const currentAgents = _prevToursPage.rows[rowIdx] ? (_prevToursPage.rows[rowIdx].agents || []) : [];
+
+  let html = '<p class="mb-2">Date: <strong>' + formatDate(dateISO) + ' — ' + jourFR(dateISO) + '</strong></p>';
+  html += '<p class="mb-1">Sélectionner le(s) agent(s) :</p>';
+  html += '<div class="quick-agents">';
+  agents.forEach(a => {
+    const isSelected = currentAgents.includes(a.nom);
+    html += '<button class="quick-agent-btn' + (isSelected ? ' selected' : '') + '" data-agent="' + escHtml(a.nom) + '" onclick="toggleQuickAgent(this)">' + escHtml(a.nom) + '<br><small>' + a.matricule + '</small></button>';
+  });
+  html += '</div>';
+
+  document.getElementById('quickModalTitle').textContent = '⚡ Saisie Rapide — ' + formatDate(dateISO);
+  document.getElementById('quickModalBody').innerHTML = html;
+  document.getElementById('quickModalOverlay').classList.add('show');
+}
+
+function toggleQuickAgent(btn) {
+  btn.classList.toggle('selected');
+}
+
+function confirmQuickEntry() {
+  const selected = document.querySelectorAll('#quickModalBody .quick-agent-btn.selected');
+  const names = Array.from(selected).map(b => b.dataset.agent);
+  if (!names.length) { showToast('Sélectionnez au moins un agent', 'error'); return; }
+
+  if (_quickEntryRow !== null && _prevToursPage.rows[_quickEntryRow]) {
+    _prevToursPage.rows[_quickEntryRow].agents = names;
+  }
+  closeQuickModal();
+  renderTab2();
+}
+
+function validateAndGenerate() {
+  if (!isAdmin()) { showToast('Accès refusé', 'error'); return; }
+  const rows = _prevToursPage.rows.length > 0 ? _prevToursPage.rows : null;
+
+  // Collect prev tours from grid — produce new format [{dateISO, agents:[{nom,matricule,officiel}], obs}]
+  let prevToursData = [];
+  if (rows) {
+    rows.forEach(r => {
+      if (!r.dateISO || !r.agents || !r.agents.length) return;
+      const agentObjs = r.agents.map(nom => {
+        const ag = getAgentByName(nom.trim());
+        return ag ? { nom: ag.nom, matricule: ag.matricule, officiel: true } : null;
+      }).filter(Boolean);
+      if (agentObjs.length) {
+        prevToursData.push({ dateISO: r.dateISO, agents: agentObjs, obs: r.obs || '' });
+      }
+    });
+  } else if (STATE.prevTours.length) {
+    prevToursData = STATE.prevTours;
+  }
+
+  if (!prevToursData.length) { showToast('Aucune donnée à valider', 'error'); return; }
+
+  STATE.prevTours = prevToursData;
+  const fullPlan = buildFullPlanning(prevToursData, STATE.agents, STATE.settings.mode);
+  STATE.planning = fullPlan;
+  applyForcedReturns();
+
+  // Update cycle indices in settings
+  const agents = getActiveSorted();
+  const { cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO } = calcCycleFromPrev(prevToursData, agents, STATE.settings.mode);
+  STATE.settings.cycleIndex = cycleIndex;
+  STATE.settings.cycleIndexSemaine = cycleIndexSemaine;
+  STATE.settings.cycleIndexWeekend = cycleIndexWeekend;
+  STATE.settings.nextGenDate = nextStartISO;
+
+  addLog('modification', 'GLOBAL', {}, { action: 'generate', prevCount: prevToursData.length, planCount: fullPlan.length }, 'Génération planning annuel');
+  saveState();
+  showToast(t('genSuccess') + ' (' + fullPlan.length + ' jours)', 'success');
+  _prevToursPage.rows = [];
+  switchTab(1);
+}
+// ════════════════════════════════════════════════════════════
+// TAB 3 — PLANNING COMPLET
+// ════════════════════════════════════════════════════════════
+function renderTab3() {
+  const ca = document.getElementById('contentArea');
+  const today = todayISO();
+  if (!_calMonth) _calMonth = today.substring(0,7);
+  if (!_calWeekStart) _calWeekStart = getWeekStart(today);
+
+  let html = '<div class="section-title"><span class="icon">📅</span>' + t('tab3') + '</div>';
+
+  // View toggle
+  html += '<div class="flex flex-gap mb-2 items-center">';
+  html += '<button class="btn btn-sm ' + (_calView==='list' ? 'btn-primary' : 'btn-outline') + '" onclick="setCalView(\'list\')">📋 Liste</button>';
+  html += '<button class="btn btn-sm ' + (_calView==='month' ? 'btn-primary' : 'btn-outline') + '" onclick="setCalView(\'month\')">📅 Mois</button>';
+  html += '<button class="btn btn-sm ' + (_calView==='week' ? 'btn-primary' : 'btn-outline') + '" onclick="setCalView(\'week\')">📆 Semaine</button>';
+  html += '</div>';
+
+  // Filters
+  html += '<div class="filters-bar">';
+  html += '<div class="filter-group"><label>Mois:</label><input type="month" value="' + _calMonth + '" onchange="_calMonth=this.value;renderTab3()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)"></div>';
+  html += '<div class="filter-group"><label>Agent:</label><select onchange="_planningFilter.agent=this.value;renderTab3()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
+  html += '<option value="">Tous</option>';
+  getActiveSorted().forEach(a => {
+    html += '<option value="' + a.nom + '"' + (_planningFilter.agent===a.nom?' selected':'') + '>' + a.nom + '</option>';
+  });
+  html += '</select></div>';
+  html += '<div class="filter-group"><label>Type:</label><select onchange="_planningFilter.type=this.value;renderTab3()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
+  html += '<option value="">Tous</option><option value="semaine"' + (_planningFilter.type==='semaine'?' selected':'') + '>Semaine</option><option value="weekend"' + (_planningFilter.type==='weekend'?' selected':'') + '>Week-end</option><option value="double"' + (_planningFilter.type==='double'?' selected':'') + '>Double</option><option value="prev"' + (_planningFilter.type==='prev'?' selected':'') + '>Précédent</option>';
+  html += '</select></div>';
+  html += '<button class="btn btn-sm btn-secondary" onclick="_planningFilter={month:\'\',agent:\'\',type:\'\'};renderTab3()">✕ Réinitialiser</button>';
+  html += '</div>';
+
+  if (_calView === 'list') html += renderPlanList();
+  else if (_calView === 'month') html += renderCalMonth();
+  else html += renderCalWeek();
+
+  ca.innerHTML = html;
+}
+
+function setCalView(v) { _calView = v; renderTab3(); }
+
+function getFilteredPlan() {
+  let entries = STATE.planning.slice();
+  if (_calMonth) entries = entries.filter(e => e.dateISO.startsWith(_calMonth));
+  if (_planningFilter.agent) entries = entries.filter(e => e.agents.some(a => a.nom === _planningFilter.agent));
+  if (_planningFilter.type === 'semaine') entries = entries.filter(e => !e.isWeekend);
+  if (_planningFilter.type === 'weekend') entries = entries.filter(e => e.isWeekend);
+  if (_planningFilter.type === 'double') entries = entries.filter(e => e.agents.filter(a=>a.officiel).length > 1);
+  if (_planningFilter.type === 'prev') entries = entries.filter(e => e.isPrev);
+  return entries.sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+}
+
+function renderPlanList() {
+  const entries = getFilteredPlan();
+  const today = todayISO();
+  let html = '<div class="table-container"><table><thead><tr>';
+  html += '<th>#</th><th>Date</th><th>Jour</th><th>Agent(s)</th><th>Mat.</th><th>Type</th><th>Récup.</th><th>Obs.</th>';
+  if (isAdmin()) html += '<th>Actions</th>';
+  html += '</tr></thead><tbody>';
+  if (!entries.length) {
+    html += '<tr><td colspan="9" class="empty-state"><div class="icon">📅</div><p>' + t('noData') + '</p></td></tr>';
+  }
+  entries.forEach((e,i) => {
+    const cls = e.dateISO===today ? 'today-row' : (e.isWeekend ? 'weekend-row' : (e.isPrev ? 'prev-row' : ''));
+    const agList = e.agents.filter(a=>a.officiel);
+    const agNames = agList.map(a => a.remplacePar ? '<span class="text-danger">' + a.remplacePar + '</span><small>(→' + a.nom + ')</small>' : a.nom).join(', ');
+    const mats = agList.map(a => { const ag=getAgentByName(a.nom); return ag ? ag.matricule : ''; }).join(', ');
+    const recupDate = !e.isPrev ? formatDate(getRecupISO(e.dateISO)) : '—';
+    const typeStr = e.isPrev ? '<span class="badge badge-prev">Préc.</span>' : (e.isWeekend ? '<span class="badge badge-we">WE</span>' : '<span class="badge badge-success">Sem.</span>');
+    html += '<tr class="' + cls + '">';
+    html += '<td>' + (i+1) + '</td><td>' + e.date + '</td><td>' + e.jour + '</td><td>' + agNames + '</td><td>' + mats + '</td><td>' + typeStr + '</td><td>' + (e.isPrev ? '—' : '<span class="badge badge-recup">' + recupDate + '</span>') + '</td><td>' + (e.obs||'') + '</td>';
+    if (isAdmin()) html += '<td><button class="btn btn-sm btn-outline" onclick="openModifyDay(\'' + e.dateISO + '\')">✏️</button></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function renderCalMonth() {
+  const [y,m] = _calMonth.split('-').map(Number);
+  const firstDay = new Date(y, m-1, 1);
+  const lastDay = new Date(y, m, 0);
+  const startDow = firstDay.getDay();
+
+  let html = '<div class="flex items-center justify-between mb-2">';
+  const prevM = m===1 ? (y-1)+'-12' : y+'-'+String(m-1).padStart(2,'0');
+  const nextM = m===12 ? (y+1)+'-01' : y+'-'+String(m+1).padStart(2,'0');
+  html += '<button class="btn btn-sm btn-outline" onclick="_calMonth=\'' + prevM + '\';renderTab3()">◀</button>';
+  html += '<h3>' + MOIS_FR[m-1] + ' ' + y + '</h3>';
+  html += '<button class="btn btn-sm btn-outline" onclick="_calMonth=\'' + nextM + '\';renderTab3()">▶</button>';
+  html += '</div>';
+
+  html += '<div class="calendar-grid">';
+  JOURS_FR.forEach(j => { html += '<div class="cal-header">' + j.substring(0,3) + '</div>'; });
+
+  // Empty cells before first day
+  for (let i=0; i<startDow; i++) html += '<div class="cal-cell other-month"></div>';
+
+  const today = todayISO();
+  for (let d=1; d<=lastDay.getDate(); d++) {
+    const dateISO = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const entry = getPlanEntry(dateISO);
+    const cls = ['cal-cell'];
+    if (dateISO===today) cls.push('today');
+    else if (isWeekend(dateISO)) cls.push('weekend');
+    if (entry && entry.isPrev) cls.push('prev');
+
+    html += '<div class="' + cls.join(' ') + '" onclick="showDayDetail(\'' + dateISO + '\')">';
+    html += '<div class="cal-date">' + d + '</div>';
+    if (entry) {
+      entry.agents.filter(a=>a.officiel).forEach(a => {
+        html += '<div class="cal-agent">' + (a.remplacePar||a.nom) + '</div>';
+      });
+    }
+    html += '</div>';
+  }
+  // Fill remaining cells
+  const totalCells = startDow + lastDay.getDate();
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let i=0; i<remaining; i++) html += '<div class="cal-cell other-month"></div>';
+
+  html += '</div>';
+  return html;
+}
+
+function getWeekStart(iso) {
+  const d = fromISO(iso);
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  return toISO(d);
+}
+
+function renderCalWeek() {
+  const weekStart = _calWeekStart || getWeekStart(todayISO());
+  const weekEnd = addDays(weekStart, 6);
+  const prevWeek = addDays(weekStart, -7);
+  const nextWeek = addDays(weekStart, 7);
+  const today = todayISO();
+
+  let html = '<div class="flex items-center justify-between mb-2">';
+  html += '<button class="btn btn-sm btn-outline" onclick="_calWeekStart=\'' + prevWeek + '\';renderTab3()">◀ Semaine préc.</button>';
+  html += '<span>' + formatDate(weekStart) + ' — ' + formatDate(weekEnd) + '</span>';
+  html += '<button class="btn btn-sm btn-outline" onclick="_calWeekStart=\'' + nextWeek + '\';renderTab3()">Semaine suiv. ▶</button>';
+  html += '</div><div class="week-view">';
+
+  for (let i=0; i<7; i++) {
+    const dateISO = addDays(weekStart, i);
+    const dow = dowOf(dateISO);
+    const entry = getPlanEntry(dateISO);
+    const isToday = dateISO === today;
+    const isWE = isWeekend(dateISO);
+    const headerCls = isToday ? 'week-day-header today-header' : (isWE ? 'week-day-header weekend-header' : 'week-day-header');
+
+    html += '<div class="week-day-col" onclick="showDayDetail(\'' + dateISO + '\')">';
+    html += '<div class="' + headerCls + '">' + JOURS_FR[dow] + '<br><small>' + formatDate(dateISO) + '</small></div>';
+    html += '<div class="week-day-body">';
+    if (entry) {
+      entry.agents.filter(a=>a.officiel).forEach(a => {
+        const ag = getAgentByName(a.nom);
+        html += renderAvatar(ag, 'sm');
+        html += '<div style="font-size:.78rem;font-weight:700;margin:.2rem 0">' + (a.remplacePar||a.nom) + '</div>';
+        html += '<div style="font-size:.7rem;color:var(--text-secondary)">' + (ag ? ag.matricule : '') + '</div>';
+      });
+    } else {
+      html += '<div class="text-muted" style="font-size:.78rem">—</div>';
+    }
+    html += '</div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB 4 — AGENTS
+// ════════════════════════════════════════════════════════════
+function renderTab4() {
+  const ca = document.getElementById('contentArea');
+  const agents = [...STATE.agents].sort((a,b) => a.matricule - b.matricule);
+  const stats = calcAgentStats();
+
+  let html = '<div class="section-title"><span class="icon">👥</span>' + t('tab4') + '</div>';
+  if (isAdmin()) {
+    html += '<div class="mb-2"><button class="btn btn-primary" onclick="openAddAgent()">+ ' + t('add') + ' Agent</button></div>';
+  }
+  html += '<div class="agents-grid">';
+
+  agents.forEach((a, i) => {
+    const s = stats[a.nom] || {};
+    html += '<div class="agent-card' + (a.actif ? '' : ' inactive') + '">';
+    html += '<div style="position:relative;display:inline-block">' + renderAvatar(a, 'lg');
+    html += '<div class="agent-rank">' + (i+1) + '</div></div>';
+    html += '<div class="agent-name">' + a.nom + '</div>';
+    html += '<div class="agent-mat">' + a.matricule + '</div>';
+    html += '<div><span class="badge ' + (a.actif ? 'badge-success' : 'badge-danger') + '">' + (a.actif ? t('active') : t('inactive')) + '</span></div>';
+    html += '<div class="agent-stats">';
+    html += '<div class="agent-stat"><div class="n">' + (s.total||0) + '</div><div class="l">Total</div></div>';
+    html += '<div class="agent-stat"><div class="n">' + (s.semaine||0) + '</div><div class="l">Sem.</div></div>';
+    html += '<div class="agent-stat"><div class="n">' + (s.weekend||0) + '</div><div class="l">WE</div></div>';
+    html += '</div>';
+    if (s.lastPerm) html += '<div style="font-size:.73rem;color:var(--text-secondary)">Dern.: ' + formatDate(s.lastPerm) + '</div>';
+    if (s.nextPerm) html += '<div style="font-size:.73rem;color:var(--primary)">Proch.: ' + formatDate(s.nextPerm) + '</div>';
+    if (isAdmin()) {
+      html += '<div class="agent-card-actions">';
+      html += '<button class="btn btn-sm btn-outline" onclick="openEditAgent(' + a.id + ')">✏️</button>';
+      html += '<button class="btn btn-sm btn-' + (a.actif ? 'warning' : 'success') + '" onclick="toggleAgentActive(' + a.id + ')">' + (a.actif ? '⏸' : '▶') + '</button>';
+      html += '<button class="btn btn-sm btn-danger" onclick="deleteAgent(' + a.id + ')">🗑️</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  ca.innerHTML = html;
+}
+
+function openAddAgent() {
+  const html = '<div class="form-row">' +
+    '<div class="form-group"><label>Nom <span class="text-danger">*</span></label><input class="form-control" id="agNom" placeholder="Nom de famille"></div>' +
+    '<div class="form-group"><label>Matricule <span class="text-danger">*</span></label><input class="form-control" type="number" id="agMat" placeholder="ex: 80000"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>' + t('photoPicker') + '</label><input type="file" accept="image/*" id="agPhoto" class="form-control" onchange="previewAgentPhoto(this)"></div>' +
+    '<div id="photoPreview" style="margin:.5rem 0"></div>' +
+    '<div class="form-group"><label class="form-check"><input type="checkbox" id="agActif" checked> Actif</label></div>';
+  openModal('+ Ajouter un Agent', html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveAgent(0)">Enregistrer</button>');
+}
+
+function openEditAgent(id) {
+  const a = STATE.agents.find(x => x.id === id);
+  if (!a) return;
+  const html = '<div class="form-row">' +
+    '<div class="form-group"><label>Nom</label><input class="form-control" id="agNom" value="' + a.nom + '"></div>' +
+    '<div class="form-group"><label>Matricule</label><input class="form-control" type="number" id="agMat" value="' + a.matricule + '"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Photo</label><input type="file" accept="image/*" id="agPhoto" class="form-control" onchange="previewAgentPhoto(this)"></div>' +
+    '<div id="photoPreview" style="margin:.5rem 0">' + (a.photo ? '<img src="'+a.photo+'" style="width:60px;height:60px;border-radius:50%;object-fit:cover">' : '') + '</div>' +
+    '<div class="form-group"><label class="form-check"><input type="checkbox" id="agActif"' + (a.actif?' checked':'') + '> Actif</label></div>';
+  openModal('✏️ Modifier ' + a.nom, html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveAgent(' + id + ')">Enregistrer</button>');
+}
+
+function previewAgentPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('photoPreview');
+    if (prev) prev.innerHTML = '<img src="' + e.target.result + '" style="width:60px;height:60px;border-radius:50%;object-fit:cover">';
+    input.dataset.photoData = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveAgent(id) {
+  const nom = document.getElementById('agNom').value.trim();
+  const mat = parseInt(document.getElementById('agMat').value);
+  const actif = document.getElementById('agActif').checked;
+  const photoInput = document.getElementById('agPhoto');
+  const photo = photoInput && photoInput.dataset.photoData ? photoInput.dataset.photoData : null;
+
+  if (!nom || !mat) { showToast('Nom et matricule obligatoires', 'error'); return; }
+
+  if (id === 0) {
+    const newId = nextId(STATE.agents);
+    const existing = STATE.agents.find(a => a.nom === nom);
+    if (existing) { showToast('Cet agent existe déjà', 'error'); return; }
+    STATE.agents.push({ id: newId, nom, matricule: mat, actif, photo: photo || null });
+    addLog('modification', 'AGENTS', {}, { action:'add', nom, matricule:mat }, 'Ajout agent');
+  } else {
+    const a = STATE.agents.find(x => x.id === id);
+    if (!a) return;
+    const old = { nom: a.nom, matricule: a.matricule, actif: a.actif };
+    a.nom = nom; a.matricule = mat; a.actif = actif;
+    if (photo) a.photo = photo;
+    addLog('modification', 'AGENTS', old, { nom, matricule:mat, actif }, 'Modification agent');
+  }
+  saveState();
+  closeModal();
+  showToast('Agent enregistré', 'success');
+  renderTab4();
+}
+
+function toggleAgentActive(id) {
+  const a = STATE.agents.find(x => x.id === id);
+  if (!a) return;
+  a.actif = !a.actif;
+  addLog('modification', 'AGENTS', { actif: !a.actif }, { actif: a.actif }, (a.actif ? 'Activation' : 'Désactivation') + ' agent ' + a.nom);
+  saveState();
+  showToast(a.nom + ' : ' + (a.actif ? 'activé' : 'désactivé'), 'success');
+  renderTab4();
+}
+
+function deleteAgent(id) {
+  const a = STATE.agents.find(x => x.id === id);
+  if (!a) return;
+  const inPlan = STATE.planning.some(e => e.agents.some(ag => ag.nom === a.nom));
+  if (inPlan) { showToast('Impossible: cet agent est dans le planning', 'error'); return; }
+  if (!confirm('Supprimer ' + a.nom + ' ?')) return;
+  STATE.agents = STATE.agents.filter(x => x.id !== id);
+  addLog('modification', 'AGENTS', { nom: a.nom }, {}, 'Suppression agent');
+  saveState();
+  showToast('Agent supprimé', 'success');
+  renderTab4();
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB 5 — REPOS/ABSENCES
+// ════════════════════════════════════════════════════════════
+function renderTab5() {
+  const ca = document.getElementById('contentArea');
+  const today = todayISO();
+  const agents = getActiveSorted();
+
+  let html = '<div class="section-title"><span class="icon">🏖️</span>' + t('tab5') + '</div>';
+
+  // Add button
+  if (isAdmin()) {
+    html += '<div class="mb-2"><button class="btn btn-primary" onclick="openAddRepos()">+ ' + t('add') + ' Absence</button></div>';
+  }
+
+  // Filters
+  html += '<div class="filters-bar">';
+  html += '<div class="filter-group"><label>Agent:</label><select id="reposFilterAgent" onchange="renderTab5()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
+  html += '<option value="">Tous</option>';
+  agents.forEach(a => html += '<option value="' + a.nom + '">' + a.nom + '</option>');
+  html += '</select></div>';
+  html += '<div class="filter-group"><label>Type:</label><select id="reposFilterType" onchange="renderTab5()" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
+  html += '<option value="">Tous</option><option value="congé">Congé</option><option value="maladie">Maladie</option><option value="mission">Mission</option>';
+  html += '</select></div></div>';
+
+  ca.innerHTML = html;
+
+  // Apply filter
+  const filterAgent = document.getElementById('reposFilterAgent') ? document.getElementById('reposFilterAgent').value : '';
+  const filterType = document.getElementById('reposFilterType') ? document.getElementById('reposFilterType').value : '';
+  let repos = [...STATE.repos].sort((a,b) => b.debut.localeCompare(a.debut));
+  if (filterAgent) repos = repos.filter(r => r.agent === filterAgent);
+  if (filterType) repos = repos.filter(r => r.type === filterType);
+
+  let tableHTML = '<div class="table-container mt-2"><table><thead><tr>';
+  tableHTML += '<th>#</th><th>Agent</th><th>Type</th><th>Début</th><th>Fin</th><th>Durée</th><th>Motif</th><th>Statut</th><th>Saisi par</th>';
+  if (isAdmin()) tableHTML += '<th>Actions</th>';
+  tableHTML += '</tr></thead><tbody>';
+
+  if (!repos.length) {
+    tableHTML += '<tr><td colspan="10" class="empty-state"><div class="icon">🏖️</div><p>' + t('noData') + '</p></td></tr>';
+  }
+  repos.forEach((r,i) => {
+    const dur = diffDays(r.debut, r.fin) + 1;
+    let statusBadge, statusClass;
+    if (r.fin < today) { statusBadge = '⚫ Passé'; statusClass = 'badge-info'; }
+    else if (r.debut > today) { statusBadge = '🟡 À venir'; statusClass = 'badge-warning'; }
+    else { statusBadge = '🔴 En cours'; statusClass = 'badge-danger'; }
+
+    const typeBadge = r.type === 'congé' ? 'badge-conge' : (r.type === 'maladie' ? 'badge-maladie' : 'badge-mission');
+    tableHTML += '<tr>';
+    tableHTML += '<td>' + (i+1) + '</td>';
+    tableHTML += '<td><strong>' + r.agent + '</strong></td>';
+    tableHTML += '<td><span class="badge ' + typeBadge + '">' + r.type + '</span></td>';
+    tableHTML += '<td>' + formatDate(r.debut) + '</td>';
+    tableHTML += '<td>' + formatDate(r.fin) + '</td>';
+    tableHTML += '<td>' + dur + ' j.</td>';
+    tableHTML += '<td>' + (r.motif||'—') + '</td>';
+    tableHTML += '<td><span class="badge ' + statusClass + '">' + statusBadge + '</span></td>';
+    tableHTML += '<td>' + (r.saisiPar||'—') + '</td>';
+    if (isAdmin()) {
+      tableHTML += '<td><div class="table-actions">';
+      tableHTML += '<button class="btn btn-sm btn-outline" onclick="openEditRepos(' + r.id + ')">✏️</button>';
+      tableHTML += '<button class="btn btn-sm btn-danger" onclick="deleteRepos(' + r.id + ')">🗑️</button>';
+      tableHTML += '</div></td>';
+    }
+    tableHTML += '</tr>';
+  });
+  tableHTML += '</tbody></table></div>';
+
+  // Warning about recalc
+  tableHTML += '<div class="alert-item info mt-2">' + t('warningRecalc') + '</div>';
+
+  document.getElementById('contentArea').innerHTML += tableHTML;
+}
+
+function openAddRepos() {
+  const agents = getActiveSorted();
+  const today = todayISO();
+  const html = '<div class="form-row">' +
+    '<div class="form-group"><label>Agent <span class="text-danger">*</span></label><select class="form-control" id="rAgent">' +
+    '<option value="">— Sélectionner —</option>' +
+    agents.map(a => '<option value="' + a.nom + '">' + a.nom + '</option>').join('') +
+    '</select></div>' +
+    '<div class="form-group"><label>Type <span class="text-danger">*</span></label><select class="form-control" id="rType">' +
+    '<option value="congé">Congé</option><option value="maladie">Maladie</option><option value="mission">Mission</option>' +
+    '</select></div></div>' +
+    '<div class="form-row">' +
+    '<div class="form-group"><label>Début <span class="text-danger">*</span></label><input type="date" class="form-control" id="rDebut" value="' + today + '" onchange="calcDuree()"></div>' +
+    '<div class="form-group"><label>Fin <span class="text-danger">*</span></label><input type="date" class="form-control" id="rFin" value="' + today + '" onchange="calcDuree()"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Durée</label><div id="rDuree" class="form-control" style="background:var(--light)">1 jour(s)</div></div>' +
+    '<div class="form-group"><label>Motif <span class="text-danger">*</span></label><textarea class="form-control" id="rMotif" placeholder="Motif obligatoire..."></textarea></div>';
+  openModal('+ Ajouter Absence', html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveRepos(0)">Enregistrer</button>');
+}
+
+function openEditRepos(id) {
+  const r = STATE.repos.find(x => x.id === id);
+  if (!r) return;
+  const agents = getActiveSorted();
+  const html = '<div class="form-row">' +
+    '<div class="form-group"><label>Agent</label><select class="form-control" id="rAgent">' +
+    agents.map(a => '<option value="' + a.nom + '"' + (r.agent===a.nom?' selected':'') + '>' + a.nom + '</option>').join('') +
+    '</select></div>' +
+    '<div class="form-group"><label>Type</label><select class="form-control" id="rType">' +
+    ['congé','maladie','mission'].map(t2 => '<option value="' + t2 + '"' + (r.type===t2?' selected':'') + '>' + t2 + '</option>').join('') +
+    '</select></div></div>' +
+    '<div class="form-row">' +
+    '<div class="form-group"><label>Début</label><input type="date" class="form-control" id="rDebut" value="' + r.debut + '" onchange="calcDuree()"></div>' +
+    '<div class="form-group"><label>Fin</label><input type="date" class="form-control" id="rFin" value="' + r.fin + '" onchange="calcDuree()"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Durée</label><div id="rDuree" class="form-control" style="background:var(--light)">' + (diffDays(r.debut,r.fin)+1) + ' jour(s)</div></div>' +
+    '<div class="form-group"><label>Motif</label><textarea class="form-control" id="rMotif">' + (r.motif||'') + '</textarea></div>';
+  openModal('✏️ Modifier Absence', html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveRepos(' + id + ')">Enregistrer</button>');
+}
+
+function calcDuree() {
+  const d = document.getElementById('rDebut').value;
+  const f = document.getElementById('rFin').value;
+  const el = document.getElementById('rDuree');
+  if (d && f && el) el.textContent = (diffDays(d,f)+1) + ' jour(s)';
+}
+
+function saveRepos(id) {
+  const agent = document.getElementById('rAgent').value;
+  const type = document.getElementById('rType').value;
+  const debut = document.getElementById('rDebut').value;
+  const fin = document.getElementById('rFin').value;
+  const motif = document.getElementById('rMotif').value.trim();
+
+  if (!agent || !debut || !fin || !motif) { showToast('Tous les champs obligatoires', 'error'); return; }
+  if (debut > fin) { showToast('Date de début après date de fin', 'error'); return; }
+
+  if (id === 0) {
+    const newId = nextId(STATE.repos);
+    STATE.repos.push({ id: newId, agent, debut, fin, type, motif, saisi: todayISO(), saisiPar: STATE.currentUser.login });
+    addLog('repos', debut, {}, { agent, type, debut, fin, motif }, 'Ajout absence ' + type);
+  } else {
+    const r = STATE.repos.find(x => x.id === id);
+    if (!r) return;
+    const old = { ...r };
+    Object.assign(r, { agent, debut, fin, type, motif });
+    addLog('repos', debut, old, { agent, type, debut, fin, motif }, 'Modification absence');
+  }
+
+  saveState();
+  closeModal();
+  showToast('Absence enregistrée. Recalcul recommandé.', 'success');
+  renderTab5();
+}
+
+function deleteRepos(id) {
+  const r = STATE.repos.find(x => x.id === id);
+  if (!r) return;
+  if (!confirm('Supprimer cette absence ?')) return;
+  STATE.repos = STATE.repos.filter(x => x.id !== id);
+  addLog('repos', r.debut, r, {}, 'Suppression absence');
+  saveState();
+  showToast('Absence supprimée', 'success');
+  renderTab5();
+}
+// ════════════════════════════════════════════════════════════
+// TAB 6 — ÉCHANGES/REMPLACEMENTS
+// ════════════════════════════════════════════════════════════
+function renderTab6() {
+  const ca = document.getElementById('contentArea');
+  const agents = getActiveSorted();
+  const today = todayISO();
+
+  let html = '<div class="section-title"><span class="icon">🔄</span>' + t('tab6') + '</div>';
+
+  // Exchange form
+  if (isAdmin()) {
+    html += '<div class="exchange-form card mb-2"><div class="card-header"><span class="card-title">Nouveau remplacement / échange</span></div><div class="card-body">';
+    html += '<div class="form-row">';
+    html += '<div class="form-group"><label>' + t('exchangeDate') + ' <span class="text-danger">*</span></label><input type="date" class="form-control" id="exchDate" value="' + today + '" onchange="fillExchangeOfficiel()"></div>';
+    html += '<div class="form-group"><label>' + t('officialAgent') + ' (auto)</label><input class="form-control" id="exchOfficiel" readonly placeholder="Auto depuis planning"></div>';
+    html += '</div>';
+    html += '<div class="form-row">';
+    html += '<div class="form-group"><label>' + t('replacedBy') + ' <span class="text-danger">*</span></label><select class="form-control" id="exchRemplacant"><option value="">— Sélectionner —</option>' +
+      agents.map(a => '<option value="' + a.nom + '">' + a.nom + ' (' + a.matricule + ')</option>').join('') + '</select></div>';
+    html += '<div class="form-group"><label>' + t('exchangeReason') + ' <span class="text-danger">*</span></label><input class="form-control" id="exchMotif" placeholder="Motif obligatoire..."></div>';
+    html += '</div>';
+    html += '<button class="btn btn-primary" onclick="saveEchange()">Enregistrer l\'échange</button>';
+    html += '</div></div>';
+  }
+
+  // Exchange table
+  const exchanges = [...STATE.echanges].sort((a,b) => b.date.localeCompare(a.date));
+  html += '<div class="table-container"><table><thead><tr>';
+  html += '<th>' + t('date') + '</th><th>' + t('officialAgent') + '</th><th>Remplaçant</th><th>' + t('exchangeReason') + '</th><th>' + t('enteredBy') + '</th><th>' + t('entryDate') + '</th>';
+  if (isAdmin()) html += '<th>Actions</th>';
+  html += '</tr></thead><tbody>';
+
+  if (!exchanges.length) {
+    html += '<tr><td colspan="7" class="empty-state"><div class="icon">🔄</div><p>' + t('noData') + '</p></td></tr>';
+  }
+  exchanges.forEach(e => {
+    html += '<tr>';
+    html += '<td>' + formatDate(e.date) + '</td>';
+    html += '<td>' + e.officiel + '</td>';
+    html += '<td><strong>' + e.remplacant + '</strong></td>';
+    html += '<td>' + e.motif + '</td>';
+    html += '<td>' + (e.saisiPar||'—') + '</td>';
+    html += '<td>' + (e.saisiDate||'—') + '</td>';
+    if (isAdmin()) {
+      html += '<td><button class="btn btn-sm btn-danger" onclick="deleteEchange(\'' + e.id + '\')">🗑️</button></td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  ca.innerHTML = html;
+
+  // Auto-fill officiel
+  setTimeout(fillExchangeOfficiel, 100);
+}
+
+function fillExchangeOfficiel() {
+  const dateEl = document.getElementById('exchDate');
+  const officielEl = document.getElementById('exchOfficiel');
+  if (!dateEl || !officielEl) return;
+  const dateISO = dateEl.value;
+  const entry = getPlanEntry(dateISO);
+  if (entry) {
+    const agents = entry.agents.filter(a => a.officiel);
+    officielEl.value = agents.map(a => a.nom).join(', ');
+  } else {
+    officielEl.value = 'Aucun planning pour cette date';
+  }
+}
+
+function saveEchange() {
+  const date = document.getElementById('exchDate').value;
+  const officiel = document.getElementById('exchOfficiel').value;
+  const remplacant = document.getElementById('exchRemplacant').value;
+  const motif = document.getElementById('exchMotif').value.trim();
+
+  if (!date || !remplacant || !motif) { showToast('Tous les champs obligatoires', 'error'); return; }
+  if (!officiel || officiel.includes('Aucun')) { showToast('Aucun planning pour cette date', 'error'); return; }
+  if (officiel.includes(remplacant)) { showToast('L\'agent remplaçant ne peut pas être l\'agent officiel', 'error'); return; }
+
+  // Update planning entry
+  const entry = getPlanEntry(date);
+  if (entry) {
+    const old = JSON.parse(JSON.stringify(entry.agents));
+    entry.agents.forEach(a => {
+      if (a.officiel && !a.remplacePar) {
+        a.remplacePar = remplacant;
+        a.motifEchange = motif;
+      }
+    });
+    addLog('echange', date, { agents: old }, { agents: entry.agents }, motif);
+  }
+
+  const newId = nextId(STATE.echanges.map(e => ({ id: typeof e.id === 'number' ? e.id : parseInt(e.id.replace(/\D/g,'')) || 0 })));
+  STATE.echanges.push({
+    id: newId, date, officiel, remplacant, motif,
+    saisiPar: STATE.currentUser.login,
+    saisiDate: formatDateTime(new Date())
+  });
+  saveState();
+  showToast('Échange enregistré', 'success');
+  renderTab6();
+}
+
+function deleteEchange(id) {
+  const e = STATE.echanges.find(x => x.id === id);
+  if (!e) return;
+  if (!confirm('Supprimer cet échange ?')) return;
+  // Restore planning entry
+  const entry = getPlanEntry(e.date);
+  if (entry) {
+    entry.agents.forEach(a => {
+      if (a.remplacePar === e.remplacant) {
+        a.remplacePar = null;
+        a.motifEchange = '';
+      }
+    });
+  }
+  STATE.echanges = STATE.echanges.filter(x => x.id !== id);
+  addLog('echange', e.date, e, {}, 'Suppression échange');
+  saveState();
+  showToast('Échange supprimé', 'success');
+  renderTab6();
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB 7 — TABLEAU DE BORD
+// ════════════════════════════════════════════════════════════
+function renderTab7() {
+  const ca = document.getElementById('contentArea');
+  const stats = calcAgentStats();
+  const agents = getActiveSorted();
+  const today = todayISO();
+  const total = STATE.planning.length;
+  const covered = STATE.planning.filter(e => e.agents.length > 0).length;
+  const pct = total ? Math.round(covered / total * 100) : 0;
+  const totals = agents.map(a => stats[a.nom] ? stats[a.nom].total : 0);
+  const maxT = Math.max(...totals, 1);
+  const minT = Math.min(...totals.filter(t2 => t2 > 0), maxT);
+  const equity = totals.filter(t2 => t2 > 0).length > 1 ? Math.round((1 - (maxT - minT) / maxT) * 100) : 100;
+
+  let html = '<div class="section-title"><span class="icon">📊</span>' + t('tab7') + '</div>';
+
+  // Global stats
+  html += '<div class="stats-row">';
+  html += '<div class="stat-card"><div class="stat-icon blue">📅</div><div class="stat-info"><div class="n">' + total + '</div><div class="l">' + t('daysPlanned') + '</div></div></div>';
+  html += '<div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="n">' + pct + '%</div><div class="l">' + t('coverage') + '</div></div></div>';
+  html += '<div class="stat-card"><div class="stat-icon orange">⚖️</div><div class="stat-info"><div class="n">' + equity + '%</div><div class="l">' + t('equityRate') + '</div></div></div>';
+  html += '<div class="stat-card"><div class="stat-icon purple">👥</div><div class="stat-info"><div class="n">' + agents.length + '</div><div class="l">' + t('activeAgents') + '</div></div></div>';
+  html += '</div>';
+
+  // Charts row
+  html += '<div class="charts-row">';
+  html += '<div class="chart-container"><div class="chart-title">Permanences par agent</div><canvas id="chartBar" height="200"></canvas></div>';
+  html += '<div class="chart-container"><div class="chart-title">Répartition Semaine / WE</div><canvas id="chartDonut" height="200"></canvas></div>';
+  html += '</div>';
+
+  // Comparison table
+  html += '<div class="card"><div class="card-header"><span class="card-title">Tableau comparatif</span></div><div class="card-body" style="padding:0">';
+  html += '<div class="table-container"><table><thead><tr>';
+  html += '<th>Rang</th><th>' + t('agent') + '</th><th>' + t('matricule') + '</th><th>' + t('total') + '</th><th>' + t('semaine') + '</th><th>' + t('weekend') + '</th><th>' + t('double') + '</th><th>Rempl.</th><th>Dern. perm.</th><th>Proch. perm.</th></tr></thead><tbody>';
+
+  const sorted = agents.map((a,i) => ({ ...a, ...stats[a.nom], rank: i+1 })).sort((a,b) => (b.total||0) - (a.total||0));
+  sorted.forEach((s,i) => {
+    const pct2 = maxT ? Math.round((s.total||0) / maxT * 100) : 0;
+    html += '<tr>';
+    html += '<td>' + (i+1) + '</td>';
+    html += '<td><strong>' + s.nom + '</strong></td>';
+    html += '<td>' + s.matricule + '</td>';
+    html += '<td><div>' + (s.total||0) + '</div><div class="progress-bar"><div class="progress-fill" style="width:' + pct2 + '%"></div></div></td>';
+    html += '<td>' + (s.semaine||0) + '</td>';
+    html += '<td>' + (s.weekend||0) + '</td>';
+    html += '<td>' + (s.doubles||0) + '</td>';
+    html += '<td>' + (s.replacements||0) + '</td>';
+    html += '<td>' + (s.lastPerm ? formatDate(s.lastPerm) : '—') + '</td>';
+    html += '<td>' + (s.nextPerm ? formatDate(s.nextPerm) : '—') + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div></div></div>';
+
+  // Alerts
+  html += '<div class="card mt-2"><div class="card-header"><span class="card-title">⚠️ Alertes automatiques</span></div><div class="card-body">';
+  const threshold = STATE.settings.alertThresholdDays || 30;
+  let hasAlert = false;
+  agents.forEach(a => {
+    const s = stats[a.nom];
+    if (!s || !s.lastPerm) return;
+    const days = diffDays(s.lastPerm, today);
+    if (days > threshold) {
+      html += '<div class="alert-item warn">⚠️ <strong>' + a.nom + '</strong>: ' + days + ' jours sans permanence (seuil: ' + threshold + ')</div>';
+      hasAlert = true;
+    }
+  });
+  // Most/least loaded
+  if (sorted.length > 1) {
+    const most = sorted[0];
+    const least = sorted[sorted.length-1];
+    if (most.total - (least.total||0) > 5) {
+      html += '<div class="alert-item info">📊 Déséquilibre: <strong>' + most.nom + '</strong> (' + most.total + ') vs <strong>' + least.nom + '</strong> (' + (least.total||0) + ')</div>';
+      hasAlert = true;
+    }
+  }
+  // Upcoming leaves
+  const nextWeek = addDays(today, 7);
+  STATE.repos.filter(r => r.debut >= today && r.debut <= nextWeek).forEach(r => {
+    html += '<div class="alert-item info">📅 ' + r.agent + ' en ' + r.type + ' à partir du ' + formatDate(r.debut) + '</div>';
+    hasAlert = true;
+  });
+  if (!hasAlert) html += '<div class="text-muted">Aucune alerte active</div>';
+  html += '</div></div>';
+
+  ca.innerHTML = html;
+
+  // Render charts
+  setTimeout(() => {
+    const barCtx = document.getElementById('chartBar');
+    const donutCtx = document.getElementById('chartDonut');
+    if (!barCtx || !donutCtx) return;
+
+    if (CHART_BAR) { CHART_BAR.destroy(); CHART_BAR = null; }
+    if (CHART_DONUT) { CHART_DONUT.destroy(); CHART_DONUT = null; }
+
+    const labels = agents.map(a => a.nom);
+    const totData = agents.map(a => stats[a.nom] ? stats[a.nom].total : 0);
+    const semData = agents.map(a => stats[a.nom] ? stats[a.nom].semaine : 0);
+    const weData = agents.map(a => stats[a.nom] ? stats[a.nom].weekend : 0);
+    const colors = agents.map((a,i) => `hsl(${(i*360/agents.length)},60%,55%)`);
+
+    CHART_BAR = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Semaine', data: semData, backgroundColor: '#2E4A7A' },
+          { label: 'Week-end', data: weData, backgroundColor: '#3498db' }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+      }
+    });
+
+    const totalSem = semData.reduce((a,b) => a+b, 0);
+    const totalWE = weData.reduce((a,b) => a+b, 0);
+    CHART_DONUT = new Chart(donutCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Semaine', 'Week-end'],
+        datasets: [{ data: [totalSem, totalWE], backgroundColor: ['#2E4A7A','#3498db'] }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+  }, 100);
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB 8 — HISTORIQUE / ARCHIVES
+// ════════════════════════════════════════════════════════════
+function renderTab8() {
+  const ca = document.getElementById('contentArea');
+  let html = '<div class="section-title"><span class="icon">📜</span>' + t('tab8') + '</div>';
+  html += '<div class="sub-tabs">';
+  html += '<button class="sub-tab active" onclick="showSubTab(\'hist8\',\'modif\',this)">' + t('modifLog') + '</button>';
+  html += '<button class="sub-tab" onclick="showSubTab(\'hist8\',\'archive\',this)">' + t('annualArchive') + '</button>';
+  html += '<button class="sub-tab" onclick="showSubTab(\'hist8\',\'connexions\',this)">' + t('connexionLog') + '</button>';
+  html += '</div>';
+
+  html += '<div id="hist8_modif" class="sub-tab-content active">' + renderModifLog() + '</div>';
+  html += '<div id="hist8_archive" class="sub-tab-content">' + renderAnnualArchive() + '</div>';
+  html += '<div id="hist8_connexions" class="sub-tab-content">' + renderConnexionLog() + '</div>';
+  ca.innerHTML = html;
+}
+
+function showSubTab(prefix, id, btn) {
+  document.querySelectorAll('[id^="' + prefix + '_"]').forEach(el => el.classList.remove('active'));
+  document.getElementById(prefix + '_' + id).classList.add('active');
+  btn.closest('.sub-tabs').querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function renderModifLog() {
+  const logs = [...STATE.logs].sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+  let html = '<div class="flex flex-gap mb-2"><button class="btn btn-sm btn-success" onclick="exportLogsExcel()">📊 Export Excel</button></div>';
+  html += '<div class="table-container"><table><thead><tr>';
+  html += '<th>' + t('timestamp') + '</th><th>' + t('user') + '</th><th>Jour modifié</th><th>' + t('type') + '</th><th>' + t('oldVal') + '</th><th>' + t('newVal') + '</th><th>' + t('reason') + '</th>';
+  html += '</tr></thead><tbody>';
+  if (!logs.length) html += '<tr><td colspan="7" class="empty-state"><p>' + t('noData') + '</p></td></tr>';
+  logs.slice(0,200).forEach(l => {
+    const oldStr = typeof l.ancienne === 'object' ? JSON.stringify(l.ancienne).substring(0,80) : String(l.ancienne||'—');
+    const newStr = typeof l.nouvelle === 'object' ? JSON.stringify(l.nouvelle).substring(0,80) : String(l.nouvelle||'—');
+    html += '<tr><td>' + l.timestamp + '</td><td>' + l.user + '</td><td>' + (l.dateISO ? formatDate(l.dateISO) : '—') + '</td>';
+    html += '<td><span class="badge badge-info">' + (l.type||'—') + '</span></td>';
+    html += '<td><small style="font-size:.72rem">' + oldStr + '</small></td>';
+    html += '<td><small style="font-size:.72rem">' + newStr + '</small></td>';
+    html += '<td>' + (l.motif||'—') + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function renderAnnualArchive() {
+  const years = [...new Set(STATE.planning.map(e => e.dateISO.substring(0,4)))].sort();
+  const today = todayISO();
+  let selectedYear = years.length ? years[years.length-1] : today.substring(0,4);
+
+  let html = '<div class="flex flex-gap mb-2 items-center">';
+  html += '<label>Année:</label><select onchange="this.nextElementSibling.textContent=renderAnnualPlan(this.value)" style="padding:.3rem .5rem;border:1.5px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary)">';
+  years.forEach(y => html += '<option value="' + y + '"' + (y===selectedYear?' selected':'') + '>' + y + '</option>');
+  html += '</select>';
+  html += '<button class="btn btn-sm btn-success" onclick="exportYearExcel()">📊 Excel</button>';
+  html += '<button class="btn btn-sm btn-primary" onclick="exportYearPDF()">📄 PDF</button>';
+  html += '</div>';
+  html += '<div id="annualPlanContent">' + renderAnnualPlan(selectedYear) + '</div>';
+  return html;
+}
+
+function renderAnnualPlan(year) {
+  const entries = STATE.planning.filter(e => e.dateISO.startsWith(year)).sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+  const today = todayISO();
+  let html = '<div class="table-container"><table><thead><tr>';
+  html += '<th>#</th><th>Date</th><th>Jour</th><th>Agent(s)</th><th>Type</th><th>Récup.</th><th>Obs.</th></tr></thead><tbody>';
+  entries.forEach((e,i) => {
+    const ag = e.agents.filter(a=>a.officiel).map(a=>a.remplacePar||a.nom).join(', ');
+    const type = e.isPrev ? 'Préc.' : (e.isWeekend ? 'WE' : 'Sem.');
+    const recup = !e.isPrev ? formatDate(getRecupISO(e.dateISO)) : '—';
+    const cls = e.dateISO===today ? 'today-row' : (e.isWeekend ? 'weekend-row' : (e.isPrev ? 'prev-row' : ''));
+    html += '<tr class="' + cls + '"><td>' + (i+1) + '</td><td>' + e.date + '</td><td>' + e.jour + '</td><td>' + ag + '</td><td>' + type + '</td><td>' + recup + '</td><td>' + (e.obs||'') + '</td></tr>';
+  });
+  if (!entries.length) html += '<tr><td colspan="7" class="empty-state"><p>' + t('noData') + '</p></td></tr>';
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function renderConnexionLog() {
+  const logs = [...STATE.connexions].sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+  let html = '<div class="table-container"><table><thead><tr><th>Horodatage</th><th>Utilisateur</th><th>Rôle</th><th>User-Agent</th></tr></thead><tbody>';
+  if (!logs.length) html += '<tr><td colspan="4" class="empty-state"><p>' + t('noData') + '</p></td></tr>';
+  logs.slice(0,100).forEach(l => {
+    html += '<tr><td>' + l.timestamp + '</td><td>' + l.user + '</td><td>' + (l.role||'—') + '</td><td><small style="font-size:.72rem">' + (l.ua||'—') + '</small></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB 9 — PARAMÈTRES
+// ════════════════════════════════════════════════════════════
+function renderTab9() {
+  const ca = document.getElementById('contentArea');
+  let html = '<div class="section-title"><span class="icon">⚙️</span>' + t('tab9') + '</div>';
+
+  // Tour mode
+  html += '<div class="settings-section"><h3>Mode de rotation</h3>';
+  html += '<div class="flex flex-gap items-center mb-2">';
+  html += '<button class="btn ' + (STATE.settings.mode==='CONTINU' ? 'btn-primary' : 'btn-outline') + '" onclick="setMode(\'CONTINU\')">' + t('modeContinu') + '</button>';
+  html += '<button class="btn ' + (STATE.settings.mode==='WEEK' ? 'btn-primary' : 'btn-outline') + '" onclick="setMode(\'WEEK\')">' + t('modeWeek') + '</button>';
+  html += '</div>';
+  html += '<p class="text-muted" style="font-size:.83rem">Mode actuel: <strong>' + STATE.settings.mode + '</strong>' + (STATE.settings.modeChangedDate ? ' (changé le ' + formatDate(STATE.settings.modeChangedDate) + ')' : '') + '</p>';
+  html += '</div>';
+
+  // Thresholds
+  html += '<div class="settings-section"><h3>Seuils</h3>';
+  html += '<div class="form-row">';
+  html += '<div class="form-group"><label>' + t('threshold') + '</label><input type="number" class="form-control" id="setThreshold" value="' + (STATE.settings.alertThresholdDays||DEFAULT_ALERT_THRESHOLD) + '" min="1" max="365"></div>';
+  html += '<div class="form-group"><label>' + t('historyDays') + '</label><input type="number" class="form-control" id="setHistDays" value="' + (STATE.settings.historyDays||16) + '" min="5" max="60"></div>';
+  html += '</div>';
+  html += '<button class="btn btn-primary" onclick="saveSettings()">Enregistrer</button>';
+  html += '</div>';
+
+  // Appearance
+  html += '<div class="settings-section"><h3>Apparence</h3>';
+  html += '<div class="flex flex-gap items-center">';
+  html += '<label>' + t('darkMode') + '</label>';
+  html += '<label class="toggle-switch"><input type="checkbox" id="darkModeToggle" ' + (STATE.theme==='dark'?'checked':'') + ' onchange="toggleDarkMode(this)"><div class="toggle-track"></div></label>';
+  html += '</div></div>';
+
+  // Language
+  html += '<div class="settings-section"><h3>' + t('language') + '</h3>';
+  html += '<div class="flex flex-gap">';
+  html += '<button class="btn ' + (STATE.lang==='fr'?'btn-primary':'btn-outline') + '" onclick="setLang(\'fr\')">🇫🇷 Français</button>';
+  html += '<button class="btn ' + (STATE.lang==='ar'?'btn-primary':'btn-outline') + '" onclick="setLang(\'ar\')">🇲🇦 العربية</button>';
+  html += '</div></div>';
+
+  // Users (admin only)
+  if (isAdmin()) {
+    html += '<div class="settings-section"><h3>' + t('users') + '</h3>';
+    html += '<table class="users-table"><thead><tr><th>Login</th><th>Nom</th><th>Rôle</th><th>Actions</th></tr></thead><tbody>';
+    STATE.users.forEach(u => {
+      html += '<tr><td>' + u.login + '</td><td>' + u.nom + '</td><td><span class="badge ' + (u.role==='admin'?'badge-danger':'badge-info') + '">' + u.role + '</span></td>';
+      html += '<td><div class="table-actions">';
+      html += '<button class="btn btn-sm btn-outline" onclick="openEditUser(' + u.id + ')">✏️</button>';
+      if (u.id !== STATE.currentUser.id) html += '<button class="btn btn-sm btn-danger" onclick="deleteUser(' + u.id + ')">🗑️</button>';
+      html += '</div></td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<button class="btn btn-primary mt-2" onclick="openAddUser()">+ ' + t('add') + ' Utilisateur</button>';
+    html += '</div>';
+  }
+
+  // Backup
+  html += '<div class="settings-section"><h3>' + t('backup') + ' & ' + t('restore') + '</h3>';
+  html += '<div class="flex flex-gap flex-wrap">';
+  html += '<button class="btn btn-outline" onclick="exportJSON()">💾 ' + t('saveJSON') + '</button>';
+  html += '<button class="btn btn-outline" onclick="triggerImportJSON()">📂 ' + t('importJSON') + '</button>';
+  html += '<input type="file" id="jsonFileInput2" accept=".json" style="display:none" onchange="importJSONFile(this)">';
+  if (isAdmin()) html += '<button class="btn btn-danger" onclick="confirmReset()">🔄 ' + t('reset') + '</button>';
+  html += '</div></div>';
+
+  ca.innerHTML = html;
+}
+
+function setMode(mode) {
+  if (!isAdmin()) { showToast('Accès refusé', 'error'); return; }
+  if (STATE.settings.mode === mode) return;
+  if (!confirm(t('modeChangeConfirm') + ' ' + mode + ' ?')) return;
+  STATE.settings.mode = mode;
+  STATE.settings.modeChangedDate = todayISO();
+  saveState();
+  showToast('Mode changé en ' + mode, 'success');
+  renderTab9();
+}
+
+function saveSettings() {
+  const threshold = parseInt(document.getElementById('setThreshold').value);
+  const histDays = parseInt(document.getElementById('setHistDays').value);
+  if (threshold > 0) STATE.settings.alertThresholdDays = threshold;
+  if (histDays > 0) STATE.settings.historyDays = histDays;
+  saveState();
+  showToast('Paramètres enregistrés', 'success');
+}
+
+function toggleDarkMode(input) {
+  STATE.theme = input.checked ? 'dark' : 'light';
+  applyTheme();
+  saveState();
+}
+
+function openAddUser() {
+  const html = '<div class="form-group"><label>Login <span class="text-danger">*</span></label><input class="form-control" id="uLogin" placeholder="identifiant"></div>' +
+    '<div class="form-group"><label>Nom <span class="text-danger">*</span></label><input class="form-control" id="uNom" placeholder="Nom complet"></div>' +
+    '<div class="form-group"><label>Rôle</label><select class="form-control" id="uRole"><option value="viewer">Lecteur</option><option value="admin">Administrateur</option></select></div>' +
+    '<div class="form-group"><label>' + t('password') + ' <span class="text-danger">*</span></label><input type="password" class="form-control" id="uPass"></div>';
+  openModal('+ Ajouter Utilisateur', html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveUser(0)">Enregistrer</button>');
+}
+
+function openEditUser(id) {
+  const u = STATE.users.find(x => x.id === id);
+  if (!u) return;
+  const html = '<div class="form-group"><label>Login</label><input class="form-control" id="uLogin" value="' + u.login + '"></div>' +
+    '<div class="form-group"><label>Nom</label><input class="form-control" id="uNom" value="' + u.nom + '"></div>' +
+    '<div class="form-group"><label>Rôle</label><select class="form-control" id="uRole">' +
+    '<option value="viewer"' + (u.role==='viewer'?' selected':'') + '>Lecteur</option>' +
+    '<option value="admin"' + (u.role==='admin'?' selected':'') + '>Administrateur</option>' +
+    '</select></div>' +
+    '<div class="form-group"><label>' + t('newPassword') + ' (laisser vide pour ne pas changer)</label><input type="password" class="form-control" id="uPass"></div>';
+  openModal('✏️ Modifier Utilisateur', html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveUser(' + id + ')">Enregistrer</button>');
+}
+
+function saveUser(id) {
+  const login = document.getElementById('uLogin').value.trim();
+  const nom = document.getElementById('uNom').value.trim();
+  const role = document.getElementById('uRole').value;
+  const pass = document.getElementById('uPass').value;
+
+  if (!login || !nom) { showToast('Login et nom obligatoires', 'error'); return; }
+
+  if (id === 0) {
+    if (!pass) { showToast('Mot de passe obligatoire', 'error'); return; }
+    if (STATE.users.find(u => u.login === login)) { showToast('Ce login existe déjà', 'error'); return; }
+    const newId = nextId(STATE.users);
+    STATE.users.push({ id: newId, login, nom, role, password: hashPwd(pass) });
+  } else {
+    const u = STATE.users.find(x => x.id === id);
+    if (!u) return;
+    u.login = login; u.nom = nom; u.role = role;
+    if (pass) u.password = hashPwd(pass);
+  }
+  saveState();
+  closeModal();
+  showToast('Utilisateur enregistré', 'success');
+  renderTab9();
+}
+
+function deleteUser(id) {
+  if (id === STATE.currentUser.id) { showToast('Impossible de supprimer votre propre compte', 'error'); return; }
+  if (!confirm('Supprimer cet utilisateur ?')) return;
+  STATE.users = STATE.users.filter(u => u.id !== id);
+  saveState();
+  showToast('Utilisateur supprimé', 'success');
+  renderTab9();
+}
+
+function confirmReset() {
+  if (!confirm(t('resetConfirm'))) return;
+  if (!confirm(t('resetConfirm2'))) return;
+  localStorage.removeItem(APP_KEY);
+  showToast('Données réinitialisées. Rechargement...', 'warning');
+  setTimeout(() => location.reload(), 1500);
+}
+// ════════════════════════════════════════════════════════════
+// EXPORT FUNCTIONS
+// ════════════════════════════════════════════════════════════
+
+function exportPDF() {
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) { showToast('jsPDF non disponible — vérifiez votre connexion internet', 'error'); return; }
+  showToast('Génération PDF...', 'info');
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const today = todayISO();
+  const entries = STATE.planning.filter(e => e.dateISO >= addDays(today,-3) && e.dateISO <= addDays(today,18))
+    .sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+
+  // Header
+  doc.setFillColor(27, 42, 74);
+  doc.rect(0, 0, 297, 20, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.text('Tour de Permanence — Permanence de l\'EXP', 148.5, 10, { align: 'center' });
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.text('Période: ' + formatDate(addDays(today,-3)) + ' — ' + formatDate(addDays(today,18)) + '   |   Imprimé le: ' + formatDate(today), 148.5, 16, { align: 'center' });
+
+  // Table headers
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(9);
+  const colX = [14, 36, 68, 110, 148, 178, 208, 248];
+  const headers = ['#', 'Date', 'Jour', 'Permanencier', 'Matricule', 'Type', 'Récupération', 'Observation'];
+  doc.setFillColor(46, 74, 122);
+  doc.rect(10, 24, 277, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont(undefined, 'bold');
+  headers.forEach((h, i) => doc.text(h, colX[i], 29.5));
+
+  // Table rows
+  doc.setFont(undefined, 'normal');
+  let y = 36;
+  entries.forEach((entry, idx) => {
+    if (y > 190) {
+      doc.addPage();
+      doc.setFillColor(27, 42, 74);
+      doc.rect(0, 0, 297, 15, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.text('Tour de Permanence — EXP (suite)', 148.5, 8, { align: 'center' });
+      doc.setFillColor(46, 74, 122);
+      doc.rect(10, 17, 277, 7, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(undefined, 'bold');
+      headers.forEach((h, i) => doc.text(h, colX[i], 22.5));
+      doc.setFont(undefined, 'normal');
+      y = 28;
+    }
+    const isToday = entry.dateISO === today;
+    const isWE = entry.isWeekend;
+    const isPrev = entry.isPrev;
+
+    if (isToday) doc.setFillColor(255, 248, 205);
+    else if (isPrev) doc.setFillColor(240, 230, 255);
+    else if (isWE) doc.setFillColor(224, 240, 255);
+    else doc.setFillColor(idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255);
+    doc.rect(10, y - 4, 277, 7, 'F');
+
+    doc.setTextColor(0, 0, 0);
+    const ag = entry.agents.filter(a=>a.officiel).map(a=>a.remplacePar||a.nom).join(', ');
+    const mat = entry.agents.filter(a=>a.officiel).map(a=>{ const ag2=getAgentByName(a.nom); return ag2?ag2.matricule:''; }).join(', ');
+    const type = isPrev ? 'Préc.' : (isWE ? 'WE' : 'Sem.');
+    const recup = !isPrev ? formatDate(getRecupISO(entry.dateISO)) : '—';
+    doc.setFontSize(8);
+    doc.text(String(idx+1), colX[0], y);
+    doc.text(entry.date, colX[1], y);
+    doc.text(entry.jour, colX[2], y);
+    doc.text(ag.substring(0,20), colX[3], y);
+    doc.text(String(mat).substring(0,15), colX[4], y);
+    doc.text(type, colX[5], y);
+    doc.text(recup, colX[6], y);
+    doc.text((entry.obs||'').substring(0,20), colX[7], y);
+    y += 7;
+  });
+
+  // Footer
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(27, 42, 74);
+    doc.rect(0, 197, 297, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7);
+    doc.text('Permanence de l\'EXP — v1.0   |   Page ' + i + '/' + pageCount, 148.5, 201.5, { align: 'center' });
+  }
+
+  doc.save('permanence_EXP_' + today + '.pdf');
+  showToast('PDF exporté', 'success');
+}
+
+function exportExcel() {
+  if (!window.XLSX) { showToast('XLSX non disponible', 'error'); return; }
+  showToast('Génération Excel...', 'info');
+  const wb = XLSX.utils.book_new();
+  const today = todayISO();
+
+  // Sheet 1: État Complet
+  const data1 = [['#','Date','Jour','Agent(s)','Matricule','Type','Récupération','Précédent','Observation','Modifié par','Motif modif']];
+  STATE.planning.sort((a,b)=>a.dateISO.localeCompare(b.dateISO)).forEach((e,i) => {
+    const ag = e.agents.filter(a=>a.officiel).map(a=>a.remplacePar||a.nom).join(', ');
+    const mat = e.agents.filter(a=>a.officiel).map(a=>{ const ag2=getAgentByName(a.nom); return ag2?ag2.matricule:''; }).join(', ');
+    const type = e.isPrev ? 'Précédent' : (e.isWeekend ? 'Week-end' : 'Semaine');
+    const recup = !e.isPrev ? formatDate(getRecupISO(e.dateISO)) : '—';
+    data1.push([i+1, e.date, e.jour, ag, String(mat), type, recup, e.isPrev?'Oui':'Non', e.obs||'', e.modifiedBy||'', e.modifMotif||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data1), 'État Complet');
+
+  // Sheet 2: Statistiques
+  const stats = calcAgentStats();
+  const data2 = [['Agent','Matricule','Total','Semaine','Week-end','Doubles','Remplacements','Dernière perm.','Prochaine perm.']];
+  getActiveSorted().forEach(a => {
+    const s = stats[a.nom]||{};
+    data2.push([a.nom, a.matricule, s.total||0, s.semaine||0, s.weekend||0, s.doubles||0, s.replacements||0,
+      s.lastPerm ? formatDate(s.lastPerm) : '—', s.nextPerm ? formatDate(s.nextPerm) : '—']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data2), 'Statistiques');
+
+  // Sheet 3: Repos/Absences
+  const data3 = [['#','Agent','Type','Début','Fin','Durée','Motif','Saisi par','Date saisie']];
+  STATE.repos.forEach((r,i) => {
+    data3.push([i+1, r.agent, r.type, formatDate(r.debut), formatDate(r.fin), diffDays(r.debut,r.fin)+1, r.motif||'', r.saisiPar||'', formatDate(r.saisi||today)]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data3), 'Repos-Absences');
+
+  // Sheet 4: Échanges
+  const data4 = [['Date','Agent Officiel','Remplaçant','Motif','Saisi par','Date saisie']];
+  STATE.echanges.forEach(e => {
+    data4.push([formatDate(e.date), e.officiel, e.remplacant, e.motif||'', e.saisiPar||'', e.saisiDate||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data4), 'Échanges');
+
+  // Sheet 5: Journal modifications
+  const data5 = [['Horodatage','Utilisateur','Date modifiée','Type','Ancienne valeur','Nouvelle valeur','Motif']];
+  STATE.logs.slice(-500).forEach(l => {
+    data5.push([l.timestamp, l.user, l.dateISO ? formatDate(l.dateISO) : '—', l.type||'—',
+      JSON.stringify(l.ancienne||{}).substring(0,200), JSON.stringify(l.nouvelle||{}).substring(0,200), l.motif||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data5), 'Journal');
+
+  XLSX.writeFile(wb, 'permanence_EXP_' + today + '.xlsx');
+  showToast('Excel exporté', 'success');
+}
+
+function exportLogsExcel() {
+  if (!window.XLSX) { showToast('XLSX non disponible', 'error'); return; }
+  const wb = XLSX.utils.book_new();
+  const data = [['Horodatage','Utilisateur','Date modifiée','Type','Ancienne valeur','Nouvelle valeur','Motif']];
+  STATE.logs.slice(-500).forEach(l => {
+    data.push([l.timestamp, l.user, l.dateISO ? formatDate(l.dateISO) : '—', l.type||'—',
+      JSON.stringify(l.ancienne||{}).substring(0,200), JSON.stringify(l.nouvelle||{}).substring(0,200), l.motif||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Journal');
+  XLSX.writeFile(wb, 'journal_modifications_' + todayISO() + '.xlsx');
+  showToast('Journal exporté', 'success');
+}
+
+function exportYearExcel() {
+  const sel = document.querySelector('#annualPlanContent')?.closest('.sub-tab-content');
+  const yearSel = document.querySelector('[onchange*="renderAnnualPlan"]');
+  const year = yearSel ? yearSel.value : todayISO().substring(0,4);
+  if (!window.XLSX) { showToast('XLSX non disponible', 'error'); return; }
+  const wb = XLSX.utils.book_new();
+  const data = [['#','Date','Jour','Agent(s)','Type','Récupération','Observation']];
+  STATE.planning.filter(e => e.dateISO.startsWith(year)).sort((a,b)=>a.dateISO.localeCompare(b.dateISO)).forEach((e,i) => {
+    const ag = e.agents.filter(a=>a.officiel).map(a=>a.remplacePar||a.nom).join(', ');
+    data.push([i+1, e.date, e.jour, ag, e.isPrev?'Préc.':(e.isWeekend?'WE':'Sem.'), !e.isPrev?formatDate(getRecupISO(e.dateISO)):'—', e.obs||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Archive ' + year);
+  XLSX.writeFile(wb, 'archive_' + year + '.xlsx');
+  showToast('Archive Excel exportée', 'success');
+}
+
+function exportYearPDF() {
+  const yearSel = document.querySelector('[onchange*="renderAnnualPlan"]');
+  const year = yearSel ? yearSel.value : todayISO().substring(0,4);
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) { showToast('jsPDF non disponible — vérifiez votre connexion internet', 'error'); return; }
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  doc.setFillColor(27, 42, 74);
+  doc.rect(0, 0, 297, 20, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.text('Archive Annuelle ' + year + ' — Permanence de l\'EXP', 148.5, 12, { align: 'center' });
+
+  const entries = STATE.planning.filter(e => e.dateISO.startsWith(year)).sort((a,b)=>a.dateISO.localeCompare(b.dateISO));
+  const colX = [14, 36, 68, 110, 150, 180, 210];
+  const headers = ['#', 'Date', 'Jour', 'Permanencier', 'Type', 'Récupération', 'Observation'];
+  let y = 28;
+
+  doc.setFillColor(46, 74, 122);
+  doc.rect(10, y-5, 277, 7, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont(undefined,'bold');
+  doc.setFontSize(8);
+  headers.forEach((h,i) => doc.text(h, colX[i], y));
+  y += 5;
+
+  entries.forEach((entry, idx) => {
+    if (y > 190) {
+      doc.addPage();
+      y = 15;
+      doc.setFillColor(46, 74, 122);
+      doc.rect(10, y-5, 277, 7, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFont(undefined,'bold');
+      headers.forEach((h,i) => doc.text(h, colX[i], y));
+      y += 5;
+    }
+    doc.setFont(undefined,'normal');
+    doc.setFillColor(idx%2===0?250:255,idx%2===0?250:255,idx%2===0?250:255);
+    doc.rect(10, y-4, 277, 6, 'F');
+    doc.setTextColor(0,0,0);
+    const ag = entry.agents.filter(a=>a.officiel).map(a=>a.remplacePar||a.nom).join(', ');
+    const type = entry.isPrev ? 'Préc.' : (entry.isWeekend ? 'WE' : 'Sem.');
+    const recup = !entry.isPrev ? formatDate(getRecupISO(entry.dateISO)) : '—';
+    doc.setFontSize(7);
+    doc.text(String(idx+1), colX[0], y);
+    doc.text(entry.date, colX[1], y);
+    doc.text(entry.jour, colX[2], y);
+    doc.text(ag.substring(0,22), colX[3], y);
+    doc.text(type, colX[4], y);
+    doc.text(recup, colX[5], y);
+    doc.text((entry.obs||'').substring(0,22), colX[6], y);
+    y += 6;
+  });
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i=1;i<=pageCount;i++) {
+    doc.setPage(i);
+    doc.setFillColor(27,42,74);
+    doc.rect(0,197,297,7,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(7);
+    doc.text('Archive ' + year + ' — Permanence EXP   |   Page ' + i + '/' + pageCount, 148.5, 201.5, {align:'center'});
+  }
+  doc.save('archive_' + year + '.pdf');
+  showToast('Archive PDF exportée', 'success');
+}
+
+function exportJSON() {
+  const data = {
+    exportDate: formatDateTime(new Date()),
+    version: '1.0',
+    agents: STATE.agents,
+    planning: STATE.planning,
+    repos: STATE.repos,
+    echanges: STATE.echanges,
+    logs: STATE.logs,
+    prevTours: STATE.prevTours,
+    settings: STATE.settings,
+    users: STATE.users.map(u => ({ ...u }))
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'perm_EXP_backup_' + todayISO() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Sauvegarde JSON exportée', 'success');
+}
+
+function triggerImportJSON() {
+  const el = document.getElementById('jsonFileInput') || document.getElementById('jsonFileInput2');
+  if (el) el.click();
+}
+
+function importJSONFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!confirm(t('importConfirm'))) return;
+      if (data.agents) STATE.agents = data.agents;
+      if (data.planning) STATE.planning = data.planning;
+      if (data.repos) STATE.repos = data.repos;
+      if (data.echanges) STATE.echanges = data.echanges;
+      if (data.logs) STATE.logs = data.logs;
+      if (data.prevTours) STATE.prevTours = migratePrevTours(data.prevTours);
+      if (data.settings) STATE.settings = { ...STATE.settings, ...data.settings };
+      if (data.users) STATE.users = data.users;
+      saveState();
+      showToast('Import réussi ! Rechargement...', 'success');
+      setTimeout(() => location.reload(), 1000);
+    } catch(err) {
+      showToast('Fichier JSON invalide: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL UTILITIES
+// ════════════════════════════════════════════════════════════
+function openModal(title, bodyHTML, footerHTML, extraClass) {
+  document.getElementById('mainModalTitle').textContent = title;
+  document.getElementById('mainModalBody').innerHTML = bodyHTML;
+  document.getElementById('mainModalFooter').innerHTML = footerHTML || '';
+  const modal = document.getElementById('mainModal');
+  modal.className = 'modal' + (extraClass ? ' ' + extraClass : '');
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function closeModalOverlay(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+function closeQuickModal() {
+  document.getElementById('quickModalOverlay').classList.remove('show');
+}
+
+function closeQuickModalOverlay(e) {
+  if (e.target === document.getElementById('quickModalOverlay')) closeQuickModal();
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST NOTIFICATIONS
+// ════════════════════════════════════════════════════════════
+function showToast(msg, type) {
+  type = type || 'info';
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.innerHTML = '<span class="toast-icon">' + icons[type] + '</span><span class="toast-msg">' + msg + '</span><span class="toast-close" onclick="this.parentNode.remove()">✕</span>';
+  container.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 4000);
+}
+
+// ════════════════════════════════════════════════════════════
+// LOGS
+// ════════════════════════════════════════════════════════════
+function addLog(type, dateISO, ancienne, nouvelle, motif) {
+  if (!STATE.currentUser) return;
+  STATE.logs.push({
+    id: 'l' + Date.now() + Math.random().toString(36).slice(2),
+    timestamp: formatDateTime(new Date()),
+    user: STATE.currentUser.login,
+    dateISO: dateISO || null,
+    type, ancienne, nouvelle, motif
+  });
+  // Keep last 1000 logs
+  if (STATE.logs.length > MAX_LOGS_RETAINED) STATE.logs = STATE.logs.slice(-MAX_LOGS_RETAINED);
+}
+
+// ════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModal();
+    closeQuickModal();
+  }
+  if (e.target.tagName === 'INPUT' && e.key === 'Enter') {
+    if (document.getElementById('loginPage').style.display !== 'none') doLogin();
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// INITIALIZATION
+// ════════════════════════════════════════════════════════════
+function init() {
+  const loaded = loadState();
+  if (!loaded) {
+    // First run: init with defaults
+    STATE.agents = JSON.parse(JSON.stringify(AGENTS_INIT));
+    saveState();
+  }
+  applyTheme();
+  applyLang();
+
+  // Enter key on login
+  document.getElementById('loginPass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('loginUser').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('loginPass').focus();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
