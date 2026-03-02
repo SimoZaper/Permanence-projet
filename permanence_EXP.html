@@ -612,7 +612,11 @@ const I18N = {
     warningRecalc:'⚠️ La modification des absences peut nécessiter une recalculation du planning.',
     daysWithoutPerm:'jours sans permanence',
     noPerm:'aucune permanence enregistrée',
-    allUnavailableToast:'⚠️ Tous les agents indisponibles le %s — l\'agent en tête de liste est assigné par défaut. Veuillez corriger les congés/récupérations.'
+    allUnavailableToast:'⚠️ Tous les agents indisponibles le %s — l\'agent en tête de liste est assigné par défaut. Veuillez corriger les congés/récupérations.',
+    clearAllPrevTours: 'Tout effacer (Tours Précédents)',
+    clearAllPrevToursConfirm: 'Effacer tous les tours précédents ? Cette action est irréversible !',
+    clearAllPlanning: 'Tout effacer (Planning)',
+    clearAllPlanningConfirm: 'Effacer tout le planning généré ? Cette action est irréversible !'
   },
   ar: {
     appTitle:'دوري الخدمة', appSubTitle:"ديمومة المشروع التجريبي",
@@ -670,7 +674,11 @@ const I18N = {
     warningRecalc:'⚠️ قد يستلزم تعديل الغيابات إعادة حساب الجدول.',
     daysWithoutPerm:'أيام بدون ديمومة',
     noPerm:'لا توجد ديمومة مسجلة',
-    allUnavailableToast:'⚠️ جميع الأعوان غير متاحين في %s — تم تعيين العون الأول افتراضياً. يرجى تصحيح الإجازات/التعويضات.'
+    allUnavailableToast:'⚠️ جميع الأعوان غير متاحين في %s — تم تعيين العون الأول افتراضياً. يرجى تصحيح الإجازات/التعويضات.',
+    clearAllPrevTours: 'مسح كل الجولات السابقة',
+    clearAllPrevToursConfirm: 'مسح جميع الجولات السابقة؟ هذا الإجراء لا يمكن التراجع عنه!',
+    clearAllPlanning: 'مسح كل الجدول',
+    clearAllPlanningConfirm: 'مسح جدول الديمومة بالكامل؟ هذا الإجراء لا يمكن التراجع عنه!'
   }
 };
 
@@ -1744,10 +1752,11 @@ function renderTab2() {
   html += '<div class="form-group"><label>' + t('periodFrom') + '</label><input type="date" class="form-control" id="prevStart" value="' + defaultStart + '"></div>';
   html += '<div class="form-group"><label>' + t('periodTo') + '</label><input type="date" class="form-control" id="prevEnd" value="' + today + '"></div>';
   html += '</div>';
-  html += '<div class="flex flex-gap">';
+  html += '<div class="flex flex-gap flex-wrap">';
   html += '<button class="btn btn-primary" onclick="createPrevGrid()">' + t('createGrid') + '</button>';
   if (STATE.prevTours.length > 0) html += '<button class="btn btn-outline" onclick="loadExistingPrevTours()">📂 Charger existant</button>';
   if (isAdmin() && STATE.prevTours.length > 0) html += '<button class="btn btn-success" onclick="validateAndGenerate()">✅ ' + t('validateGen') + '</button>';
+  if (isAdmin() && STATE.prevTours.length > 0) html += '<button class="btn btn-danger btn-sm" onclick="clearAllPrevTours()">🗑️ ' + t('clearAllPrevTours') + '</button>';
   html += '</div>';
   html += '</div></div>';
 
@@ -1824,6 +1833,7 @@ function renderPrevToursGrid() {
     html += '<div class="flex flex-gap">';
     html += '<button class="btn btn-sm btn-outline" onclick="autoFillPrevTours()">🤖 ' + t('autoEntry') + '</button>';
     html += '<button class="btn btn-sm btn-success" onclick="validateAndGenerate()">✅ ' + t('validateGen') + '</button>';
+    html += '<button class="btn btn-sm btn-danger" onclick="clearAllPrevTours()">🗑️ ' + t('clearAllPrevTours') + '</button>';
     html += '</div>';
   }
   html += '</div><div class="card-body" style="padding:0">';
@@ -2021,6 +2031,7 @@ function renderTab3() {
   html += '<option value="">Tous</option><option value="semaine"' + (_planningFilter.type==='semaine'?' selected':'') + '>Semaine</option><option value="weekend"' + (_planningFilter.type==='weekend'?' selected':'') + '>Week-end</option><option value="double"' + (_planningFilter.type==='double'?' selected':'') + '>Double</option><option value="prev"' + (_planningFilter.type==='prev'?' selected':'') + '>Précédent</option>';
   html += '</select></div>';
   html += '<button class="btn btn-sm btn-secondary" onclick="_planningFilter={month:\'\',agent:\'\',type:\'\'};renderTab3()">✕ Réinitialiser</button>';
+  if (isAdmin() && STATE.planning.length > 0) html += '<button class="btn btn-sm btn-danger" onclick="clearAllPlanning()">🗑️ ' + t('clearAllPlanning') + '</button>';
   html += '</div>';
 
   if (_calView === 'list') html += renderPlanList();
@@ -3372,6 +3383,32 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Clear all previous tours (Tab 2)
+function clearAllPrevTours() {
+  if (!isAdmin()) { showToast('Accès refusé', 'error'); return; }
+  if (!confirm(t('clearAllPrevToursConfirm'))) return;
+  const prevCount = STATE.prevTours.length;
+  STATE.prevTours = [];
+  _prevToursPage = { start: null, end: null, rows: [] };
+  addLog('reset', 'prevTours', prevCount, 0, 'Tout effacer Tours Précédents');
+  saveState();
+  showToast('Tours précédents effacés', 'success');
+  renderTab2();
+}
+
+// Clear all planning (Tab 3)
+function clearAllPlanning() {
+  if (!isAdmin()) { showToast('Accès refusé', 'error'); return; }
+  if (!confirm(t('clearAllPlanningConfirm'))) return;
+  const prevCount = STATE.planning.length;
+  STATE.planning = [];
+  STATE.settings.nextGenDate = null;
+  addLog('reset', 'planning', prevCount, 0, 'Tout effacer Planning');
+  saveState();
+  showToast('Planning effacé', 'success');
+  renderTab3();
+}
 </script>
 </body>
 </html>
