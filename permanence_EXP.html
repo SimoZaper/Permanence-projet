@@ -607,7 +607,7 @@ tr.forced-return-row td:first-child { border-left:3px solid var(--forced-return-
           <div class="form-row mt-10">
             <div class="form-group">
               <label>Jours de repos après permanence</label>
-              <input type="number" id="param-rest" min="0" max="7" value="1"/>
+              <input type="number" id="param-rest" min="1" max="7" value="1"/>
             </div>
             <div class="form-group">
               <label>Jours d'indisponibilité après retour de congé</label>
@@ -1020,9 +1020,14 @@ function buildFullPlanning() {
     }
 
     if (!found) {
-      // fallback: pick anyone available
+      // fallback: pick anyone available, still respecting rest (last day + 2)
       for (const ag of agents) {
         if (!agentUnavailable(ag.id, d)) {
+          const lastFb = lastAssigned[ag.id];
+          if (lastFb) {
+            const diffFb = Math.round((fromStr(d) - fromStr(lastFb)) / 86400000);
+            if (diffFb <= state.params.rest) continue;
+          }
           planning.push({ dateStr: d, agentId: ag.id, forced: false });
           lastAssigned[ag.id] = d;
           break;
