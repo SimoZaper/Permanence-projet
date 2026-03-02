@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gestion Permanence EXP</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f0f4f8;
+  --card: #ffffff;
+  --primary: #1a6fc4;
+  --primary-dark: #135499;
+  --secondary: #27ae60;
+  --danger: #e74c3c;
+  --warning: #f39c12;
+  --text: #2c3e50;
+  --text-muted: #7f8c8d;
+  --border: #dce3ed;
+  --sidebar-bg: #1e2a38;
+  --sidebar-text: #ecf0f1;
+  --header-bg: #1a6fc4;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 10px;
+  --forced-return-bg: #e8f8f0;
+  --forced-return-border: #27ae60;
+}
+body.dark {
+  --bg: #1a1f2e;
+  --card: #252d3d;
+  --text: #ecf0f1;
+  --text-muted: #95a5a6;
+  --border: #3d4b5c;
+  --sidebar-bg: #0f1520;
+  --sidebar-text: #ecf0f1;
+  --header-bg: #135499;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --forced-return-bg: #1a3328;
+  --forced-return-border: #27ae60;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Cairo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.3s, color 0.3s;
+}
+/* ─── LOGIN ─────────────────────────────────────────────── */
+#login-screen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a6fc4 0%, #0d47a1 100%);
+}
+.login-box {
+  background: #fff; border-radius: 16px; padding: 40px;
+  width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  text-align: center;
+}
+.login-box h1 { color: var(--primary); margin-bottom: 8px; font-size: 1.6rem; }
+.login-box .subtitle { color: #7f8c8d; margin-bottom: 24px; font-size: 0.9rem; }
+.login-box input {
+  width:100%; padding:12px 16px; margin-bottom:14px;
+  border:2px solid #dce3ed; border-radius:8px;
+  font-size:1rem; font-family:'Cairo',sans-serif;
+  transition: border 0.2s;
+}
+.login-box input:focus { outline:none; border-color: var(--primary); }
+.login-box button {
+  width:100%; padding:12px; background: var(--primary); color:#fff;
+  border:none; border-radius:8px; font-size:1rem; font-family:'Cairo',sans-serif;
+  cursor:pointer; font-weight:600; transition: background 0.2s;
+}
+.login-box button:hover { background: var(--primary-dark); }
+.login-error { color: var(--danger); margin-top:10px; font-size:0.9rem; }
+
+/* ─── APP SHELL ──────────────────────────────────────────── */
+#app { display:none; min-height:100vh; }
+header {
+  background: var(--header-bg); color:#fff;
+  padding:0 24px; height:60px;
+  display:flex; align-items:center; justify-content:space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  position: sticky; top:0; z-index:100;
+}
+header h1 { font-size:1.2rem; font-weight:700; }
+.header-actions { display:flex; gap:10px; align-items:center; }
+.header-actions button {
+  background: rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3);
+  color:#fff; padding:6px 14px; border-radius:6px; cursor:pointer;
+  font-family:'Cairo',sans-serif; font-size:0.85rem; transition: background 0.2s;
+}
+.header-actions button:hover { background: rgba(255,255,255,0.25); }
+.layout { display:flex; min-height: calc(100vh - 60px); }
+
+/* ─── SIDEBAR ────────────────────────────────────────────── */
+.sidebar {
+  width:220px; background: var(--sidebar-bg); color: var(--sidebar-text);
+  display:flex; flex-direction:column; padding:12px 0;
+  transition: width 0.3s; overflow:hidden; flex-shrink:0;
+}
+.sidebar.collapsed { width:0; padding:0; }
+.nav-tab {
+  display:flex; align-items:center; gap:10px;
+  padding:11px 18px; cursor:pointer; border:none;
+  background:transparent; color: var(--sidebar-text);
+  font-family:'Cairo',sans-serif; font-size:0.9rem;
+  text-align:left; transition: background 0.2s;
+  border-left:3px solid transparent;
+}
+.nav-tab:hover { background: rgba(255,255,255,0.08); }
+.nav-tab.active {
+  background: rgba(26,111,196,0.3);
+  border-left-color: #1a6fc4;
+  font-weight:700;
+}
+.nav-tab .icon { font-size:1.1rem; flex-shrink:0; }
+.sidebar-divider { height:1px; background: rgba(255,255,255,0.1); margin:8px 12px; }
+.sidebar-widget {
+  margin:12px; padding:10px; background:rgba(255,255,255,0.06);
+  border-radius:8px; font-size:0.8rem; line-height:1.6;
+}
+.sidebar-widget h4 { color:#7ecbff; margin-bottom:6px; font-size:0.82rem; }
+.leave-return-item {
+  padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.07);
+}
+.leave-return-item:last-child { border-bottom:none; }
+.leave-return-alert {
+  background: rgba(39,174,96,0.2); border:1px solid #27ae60;
+  border-radius:5px; padding:4px 6px; margin-top:4px;
+  color:#2ecc71; font-weight:600;
+}
+
+/* ─── CONTENT ────────────────────────────────────────────── */
+.content { flex:1; padding:24px; overflow-y:auto; min-width:0; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+.page-title {
+  font-size:1.4rem; font-weight:700; color: var(--primary);
+  margin-bottom:20px; display:flex; align-items:center; gap:8px;
+}
+
+/* ─── CARDS / GRID ───────────────────────────────────────── */
+.card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding:20px; margin-bottom:20px;
+}
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:16px; margin-bottom:20px; }
+.stat-card {
+  background: var(--card); border-radius: var(--radius);
+  padding:18px; box-shadow: var(--shadow);
+  display:flex; align-items:center; gap:14px;
+}
+.stat-icon { font-size:2rem; }
+.stat-label { font-size:0.8rem; color: var(--text-muted); }
+.stat-value { font-size:1.6rem; font-weight:700; color: var(--primary); }
+
+/* ─── PLANNING GRID ──────────────────────────────────────── */
+.planning-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+.day-card {
+  background: var(--card); border-radius: var(--radius);
+  padding:14px; box-shadow: var(--shadow);
+  border-top:4px solid var(--primary);
+  transition: transform 0.15s;
+}
+.day-card:hover { transform: translateY(-2px); }
+.day-card.today { border-top-color: var(--secondary); }
+.day-card.weekend { border-top-color: var(--warning); }
+.day-card.forced-return { border-top-color: var(--forced-return-border); background: var(--forced-return-bg); }
+.day-card-date { font-size:0.8rem; color: var(--text-muted); }
+.day-card-day { font-size:1rem; font-weight:700; margin:2px 0; }
+.day-card-agent { font-size:0.95rem; font-weight:600; margin-top:6px; }
+.day-card-agent .badge { margin-left:6px; }
+
+/* ─── BADGES ─────────────────────────────────────────────── */
+.badge {
+  display:inline-block; padding:2px 8px; border-radius:20px;
+  font-size:0.72rem; font-weight:700; vertical-align:middle;
+}
+.badge-primary { background:#d0e8ff; color:#1a6fc4; }
+.badge-success { background:#d5f5e3; color:#1e8449; }
+.badge-danger  { background:#fde8e8; color:#c0392b; }
+.badge-warning { background:#fef3cd; color:#856404; }
+.badge-return  { background:#d5f5e3; color:#1e8449; border:1px solid #27ae60; }
+.badge-swap    { background:#e8daff; color:#6c3483; }
+.badge-info    { background:#d6eaf8; color:#1a5276; }
+
+/* ─── TABLE ──────────────────────────────────────────────── */
+.table-wrapper { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+th { background: var(--primary); color:#fff; padding:10px 14px; text-align:left; }
+td { padding:9px 14px; border-bottom:1px solid var(--border); }
+tr:hover td { background: rgba(26,111,196,0.05); }
+tr.forced-return-row td { background: var(--forced-return-bg); }
+tr.forced-return-row td:first-child { border-left:3px solid var(--forced-return-border); }
+
+/* ─── FORM ELEMENTS ──────────────────────────────────────── */
+.form-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.form-group { display:flex; flex-direction:column; gap:4px; flex:1; min-width:160px; }
+.form-group label { font-size:0.85rem; font-weight:600; color: var(--text-muted); }
+.form-group input, .form-group select, .form-group textarea {
+  padding:9px 12px; border:1.5px solid var(--border);
+  border-radius:7px; font-size:0.9rem; font-family:'Cairo',sans-serif;
+  background: var(--bg); color: var(--text); transition: border 0.2s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline:none; border-color: var(--primary);
+}
+.btn {
+  padding:9px 18px; border:none; border-radius:7px; cursor:pointer;
+  font-family:'Cairo',sans-serif; font-size:0.9rem; font-weight:600;
+  display:inline-flex; align-items:center; gap:6px; transition: opacity 0.2s;
+}
+.btn:hover { opacity:0.85; }
+.btn-primary { background: var(--primary); color:#fff; }
+.btn-success { background: var(--secondary); color:#fff; }
+.btn-danger  { background: var(--danger); color:#fff; }
+.btn-warning { background: var(--warning); color:#fff; }
+.btn-secondary { background: #95a5a6; color:#fff; }
+.btn-sm { padding:5px 12px; font-size:0.8rem; }
+
+/* ─── ALERT ──────────────────────────────────────────────── */
+.alert {
+  padding:12px 16px; border-radius:8px; margin-bottom:14px;
+  font-size:0.9rem; display:flex; align-items:center; gap:8px;
+}
+.alert-info    { background:#d6eaf8; color:#1a5276; border:1px solid #85c1e9; }
+.alert-success { background:#d5f5e3; color:#1e8449; border:1px solid #7dcea0; }
+.alert-warning { background:#fef9e7; color:#856404; border:1px solid #f9e79f; }
+.alert-danger  { background:#fde8e8; color:#c0392b; border:1px solid #f5b7b1; }
+
+/* ─── TABS (inner) ───────────────────────────────────────── */
+.inner-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+.inner-tab {
+  padding:7px 16px; border:1.5px solid var(--border);
+  border-radius:20px; cursor:pointer; font-size:0.85rem;
+  background: var(--card); color: var(--text); transition: all 0.2s;
+}
+.inner-tab.active { background: var(--primary); color:#fff; border-color: var(--primary); }
+
+/* ─── CALENDAR ───────────────────────────────────────────── */
+.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.cal-header { text-align:center; font-size:0.75rem; font-weight:700; color: var(--text-muted); padding:4px; }
+.cal-day {
+  min-height:70px; padding:6px; border:1px solid var(--border);
+  border-radius:6px; cursor:pointer; background: var(--card);
+  font-size:0.8rem; transition: background 0.15s;
+}
+.cal-day:hover { background: rgba(26,111,196,0.07); }
+.cal-day.today-cal { border-color: var(--primary); background: rgba(26,111,196,0.08); }
+.cal-day.other-month { opacity:0.4; }
+.cal-day .cal-num { font-weight:700; color: var(--primary); font-size:0.9rem; }
+.cal-day .cal-agent { font-size:0.72rem; color: var(--text-muted); margin-top:2px; }
+.cal-day.forced-return { background: var(--forced-return-bg); border-color: var(--forced-return-border); }
+
+/* ─── CHART CONTAINER ────────────────────────────────────── */
+.chart-container { position:relative; max-height:300px; }
+
+/* ─── MODAL ──────────────────────────────────────────────── */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.5);
+  display:none; align-items:center; justify-content:center; z-index:999;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background: var(--card); border-radius:12px; padding:28px;
+  width:90%; max-width:500px; max-height:85vh; overflow-y:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,0.25);
+}
+.modal h3 { margin-bottom:18px; color: var(--primary); }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+
+/* ─── MISC ───────────────────────────────────────────────── */
+.text-right { text-align:right; }
+.flex-gap { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.mt-10 { margin-top:10px; }
+.mt-20 { margin-top:20px; }
+.color-dot {
+  display:inline-block; width:12px; height:12px;
+  border-radius:50%; margin-right:6px; vertical-align:middle;
+}
+.progress-bar-bg { background: var(--border); border-radius:10px; height:10px; margin-top:4px; }
+.progress-bar { background: var(--primary); border-radius:10px; height:10px; transition: width 0.4s; }
+.search-input {
+  padding:8px 14px; border:1.5px solid var(--border); border-radius:7px;
+  font-family:'Cairo',sans-serif; font-size:0.9rem;
+  background: var(--bg); color: var(--text); width:220px;
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>🔒 Permanence EXP</h1>
+    <p class="subtitle">Système de gestion des permanences</p>
+    <input type="text" id="usr" placeholder="Nom d'utilisateur" autocomplete="username"/>
+    <input type="password" id="pwd" placeholder="Mot de passe" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button onclick="doLogin()">Se connecter</button>
+    <p class="login-error" id="login-err"></p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════════════════════ -->
+<div id="app">
+  <header>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button onclick="toggleSidebar()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;">☰</button>
+      <h1>📋 Permanence EXP</h1>
+    </div>
+    <div class="header-actions">
+      <span id="header-date" style="font-size:0.85rem;opacity:0.85;"></span>
+      <button onclick="toggleLang()" id="lang-btn">🌐 AR</button>
+      <button onclick="toggleDark()" id="dark-btn">🌙 Sombre</button>
+      <span id="user-badge" style="font-size:0.85rem;opacity:0.9;"></span>
+      <button onclick="doLogout()">🚪 Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <button class="nav-tab active" data-tab="0" onclick="showTab(0)"><span class="icon">🏠</span><span class="lbl">Accueil</span></button>
+      <button class="nav-tab" data-tab="1" onclick="showTab(1)"><span class="icon">📜</span><span class="lbl">Tours Précédents</span></button>
+      <button class="nav-tab" data-tab="2" onclick="showTab(2)"><span class="icon">📅</span><span class="lbl">Planning Complet</span></button>
+      <button class="nav-tab" data-tab="3" onclick="showTab(3)"><span class="icon">👥</span><span class="lbl">Agents</span></button>
+      <button class="nav-tab" data-tab="4" onclick="showTab(4)"><span class="icon">🛌</span><span class="lbl">Repos/Absences</span></button>
+      <button class="nav-tab" data-tab="5" onclick="showTab(5)"><span class="icon">🔄</span><span class="lbl">Échanges</span></button>
+      <div class="sidebar-divider"></div>
+      <button class="nav-tab" data-tab="6" onclick="showTab(6)"><span class="icon">📊</span><span class="lbl">Tableau de Bord</span></button>
+      <button class="nav-tab" data-tab="7" onclick="showTab(7)"><span class="icon">🗄️</span><span class="lbl">Archives</span></button>
+      <button class="nav-tab" data-tab="8" onclick="showTab(8)"><span class="icon">⚙️</span><span class="lbl">Paramètres</span></button>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-widget" id="leave-widget">
+        <h4>🗓️ Retours à venir</h4>
+        <div id="leave-widget-content"><em style="opacity:0.6">Chargement…</em></div>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="content">
+
+      <!-- ── TAB 0 : ACCUEIL ─────────────────────────────── -->
+      <div class="tab-panel active" id="tab0">
+        <div class="page-title">🏠 Accueil — Planning 18 Jours</div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="card">
+          <div class="flex-gap" style="margin-bottom:14px;">
+            <strong>Planning des 18 prochains jours</strong>
+            <button class="btn btn-primary btn-sm" onclick="buildAndRender()">🔄 Recalculer</button>
+            <button class="btn btn-success btn-sm" onclick="exportPDF()">📄 PDF</button>
+            <button class="btn btn-warning btn-sm" onclick="exportExcel()">📊 Excel</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportJSON()">💾 JSON</button>
+          </div>
+          <div class="planning-grid" id="planning-grid18"></div>
+        </div>
+      </div>
+
+      <!-- ── TAB 1 : TOURS PRÉCÉDENTS ───────────────────── -->
+      <div class="tab-panel" id="tab1">
+        <div class="page-title">📜 Tours Précédents</div>
+        <div class="card">
+          <div class="flex-gap" style="margin-bottom:14px;">
+            <strong>Saisir un tour passé</strong>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="hist-date"/>
+            </div>
+            <div class="form-group">
+              <label>Agent</label>
+              <select id="hist-agent"></select>
+            </div>
+            <div class="form-group">
+              <label>Note</label>
+              <input type="text" id="hist-note" placeholder="Remarque (optionnel)"/>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addHistory()">➕ Ajouter</button>
+        </div>
+        <div class="card">
+          <div class="flex-gap" style="margin-bottom:10px;">
+            <strong>Historique</strong>
+            <input class="search-input" placeholder="Rechercher…" oninput="renderHistory(this.value)"/>
+          </div>
+          <div class="table-wrapper"><table id="history-table">
+            <thead><tr><th>Date</th><th>Agent</th><th>Note</th><th>Actions</th></tr></thead>
+            <tbody id="history-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── TAB 2 : PLANNING COMPLET ───────────────────── -->
+      <div class="tab-panel" id="tab2">
+        <div class="page-title">📅 Planning Complet</div>
+        <div class="inner-tabs">
+          <button class="inner-tab active" onclick="switchPlanView('list',this)">📋 Liste</button>
+          <button class="inner-tab" onclick="switchPlanView('month',this)">📆 Mois</button>
+          <button class="inner-tab" onclick="switchPlanView('week',this)">🗓️ Semaine</button>
+        </div>
+        <div id="plan-list-view">
+          <div class="card">
+            <div class="flex-gap" style="margin-bottom:10px;">
+              <label>De : <input type="date" id="plan-from" style="margin-left:6px;"/></label>
+              <label>À : <input type="date" id="plan-to" style="margin-left:6px;"/></label>
+              <button class="btn btn-primary btn-sm" onclick="renderFullPlanning()">Afficher</button>
+            </div>
+            <div class="table-wrapper"><table>
+              <thead><tr><th>Date</th><th>Jour</th><th>Agent</th><th>Matricule</th><th>Statut</th></tr></thead>
+              <tbody id="full-plan-tbody"></tbody>
+            </table></div>
+          </div>
+        </div>
+        <div id="plan-month-view" style="display:none;">
+          <div class="card">
+            <div class="flex-gap" style="margin-bottom:14px;">
+              <button class="btn btn-secondary btn-sm" onclick="calNav(-1)">◀ Préc</button>
+              <strong id="cal-title"></strong>
+              <button class="btn btn-secondary btn-sm" onclick="calNav(1)">Suiv ▶</button>
+            </div>
+            <div class="calendar-grid" id="cal-headers"></div>
+            <div class="calendar-grid" id="calendar-body"></div>
+          </div>
+        </div>
+        <div id="plan-week-view" style="display:none;">
+          <div class="card">
+            <div class="flex-gap" style="margin-bottom:14px;">
+              <button class="btn btn-secondary btn-sm" onclick="weekNav(-1)">◀ Préc</button>
+              <strong id="week-title"></strong>
+              <button class="btn btn-secondary btn-sm" onclick="weekNav(1)">Suiv ▶</button>
+            </div>
+            <div class="table-wrapper"><table>
+              <thead><tr><th>Jour</th><th>Date</th><th>Agent</th><th>Statut</th></tr></thead>
+              <tbody id="week-tbody"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB 3 : AGENTS ─────────────────────────────── -->
+      <div class="tab-panel" id="tab3">
+        <div class="page-title">👥 Gestion des Agents</div>
+        <div class="card">
+          <div class="flex-gap" style="margin-bottom:14px;">
+            <strong>Ajouter un agent</strong>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nom</label>
+              <input type="text" id="ag-name" placeholder="Nom de l'agent"/>
+            </div>
+            <div class="form-group">
+              <label>Matricule</label>
+              <input type="text" id="ag-mat" placeholder="Ex: 12345"/>
+            </div>
+            <div class="form-group">
+              <label>Poste</label>
+              <input type="text" id="ag-post" placeholder="Ex: Technicien"/>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addAgent()">➕ Ajouter Agent</button>
+        </div>
+        <div class="card">
+          <div class="flex-gap" style="margin-bottom:10px;">
+            <strong>Liste des Agents (<span id="agent-count">0</span>)</strong>
+            <input class="search-input" placeholder="Rechercher agent…" oninput="renderAgents(this.value)"/>
+          </div>
+          <div class="table-wrapper"><table>
+            <thead><tr><th>#</th><th>Nom</th><th>Matricule</th><th>Poste</th><th>Tours</th><th>Dernière perm</th><th>Actions</th></tr></thead>
+            <tbody id="agents-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── TAB 4 : REPOS / ABSENCES ───────────────────── -->
+      <div class="tab-panel" id="tab4">
+        <div class="page-title">🛌 Repos &amp; Absences</div>
+        <div class="card">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Agent</label>
+              <select id="abs-agent"></select>
+            </div>
+            <div class="form-group">
+              <label>Type</label>
+              <select id="abs-type">
+                <option value="conge">Congé</option>
+                <option value="repos">Repos</option>
+                <option value="maladie">Maladie</option>
+                <option value="formation">Formation</option>
+                <option value="autre">Autre</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Début</label>
+              <input type="date" id="abs-start"/>
+            </div>
+            <div class="form-group">
+              <label>Fin</label>
+              <input type="date" id="abs-end"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Motif</label>
+              <input type="text" id="abs-reason" placeholder="Raison (optionnel)"/>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addAbsence()">➕ Enregistrer Absence</button>
+          <div id="forced-return-preview" class="alert alert-success mt-10" style="display:none;"></div>
+        </div>
+        <div class="card">
+          <strong>Absences en cours &amp; à venir</strong>
+          <div class="table-wrapper mt-10"><table>
+            <thead><tr><th>Agent</th><th>Type</th><th>Début</th><th>Fin</th><th>Retour Perm</th><th>Motif</th><th>Actions</th></tr></thead>
+            <tbody id="abs-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── TAB 5 : ÉCHANGES ───────────────────────────── -->
+      <div class="tab-panel" id="tab5">
+        <div class="page-title">🔄 Échanges &amp; Remplacements</div>
+        <div class="card">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date à échanger</label>
+              <input type="date" id="sw-date"/>
+            </div>
+            <div class="form-group">
+              <label>Agent remplacé</label>
+              <select id="sw-from"></select>
+            </div>
+            <div class="form-group">
+              <label>Agent remplaçant</label>
+              <select id="sw-to"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Motif</label>
+              <input type="text" id="sw-reason" placeholder="Raison de l'échange"/>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addSwap()">🔄 Enregistrer Échange</button>
+        </div>
+        <div class="card">
+          <strong>Historique des Échanges</strong>
+          <div class="table-wrapper mt-10"><table>
+            <thead><tr><th>Date</th><th>Agent remplacé</th><th>Agent remplaçant</th><th>Motif</th><th>Actions</th></tr></thead>
+            <tbody id="swap-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── TAB 6 : TABLEAU DE BORD ────────────────────── -->
+      <div class="tab-panel" id="tab6">
+        <div class="page-title">📊 Tableau de Bord</div>
+        <div class="stats-grid" id="dash-stats"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap;">
+          <div class="card">
+            <strong style="display:block;margin-bottom:12px;">Répartition des tours par agent</strong>
+            <div class="chart-container"><canvas id="chart-tours"></canvas></div>
+          </div>
+          <div class="card">
+            <strong style="display:block;margin-bottom:12px;">Absences par type</strong>
+            <div class="chart-container"><canvas id="chart-abs"></canvas></div>
+          </div>
+        </div>
+        <div class="card mt-20">
+          <strong style="display:block;margin-bottom:12px;">Tendance mensuelle des permanences</strong>
+          <div class="chart-container"><canvas id="chart-monthly"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ── TAB 7 : ARCHIVES ───────────────────────────── -->
+      <div class="tab-panel" id="tab7">
+        <div class="page-title">🗄️ Historique &amp; Archives</div>
+        <div class="card">
+          <div class="flex-gap" style="margin-bottom:14px;">
+            <strong>Toutes les permanences enregistrées</strong>
+            <input class="search-input" placeholder="Rechercher…" oninput="renderArchives(this.value)"/>
+            <button class="btn btn-success btn-sm" onclick="exportExcel()">📊 Export Excel</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportJSON()">💾 JSON</button>
+          </div>
+          <div class="table-wrapper"><table>
+            <thead><tr><th>Date</th><th>Agent</th><th>Matricule</th><th>Type</th><th>Note</th></tr></thead>
+            <tbody id="archive-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ── TAB 8 : PARAMÈTRES ─────────────────────────── -->
+      <div class="tab-panel" id="tab8">
+        <div class="page-title">⚙️ Paramètres</div>
+        <div class="card">
+          <strong>Règles de planification</strong>
+          <div class="form-row mt-10">
+            <div class="form-group">
+              <label>Jours de repos après permanence</label>
+              <input type="number" id="param-rest" min="0" max="7" value="1"/>
+            </div>
+            <div class="form-group">
+              <label>Jours d'indisponibilité après retour de congé</label>
+              <input type="number" id="param-return-wait" min="0" max="5" value="1"/>
+            </div>
+            <div class="form-group">
+              <label>Nombre de jours du planning accueil</label>
+              <input type="number" id="param-days" min="7" max="60" value="18"/>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveParams()">💾 Enregistrer</button>
+        </div>
+        <div class="card mt-10">
+          <strong>Données</strong>
+          <div class="flex-gap mt-10">
+            <button class="btn btn-danger" onclick="resetData()">🗑️ Réinitialiser toutes les données</button>
+            <button class="btn btn-secondary" onclick="exportJSON()">💾 Sauvegarder (JSON)</button>
+            <button class="btn btn-primary" onclick="document.getElementById('import-file').click()">📂 Importer JSON</button>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this)"/>
+          </div>
+        </div>
+        <div class="card mt-10">
+          <strong>À propos</strong>
+          <p style="margin-top:8px;font-size:0.9rem;color:var(--text-muted);">
+            Permanence EXP v2.0 — Application de gestion des tours de permanence.<br/>
+            Règle R04 : Fin congé + 1 → indisponible | Fin congé + 2 → retour forcé.
+          </p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Modal générique -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+/* ══════════════════════════════════════
+   CONSTANTS & STATE
+══════════════════════════════════════ */
+const SALT = "EXP_PERM_2025";
+
+// FNV-1a 32-bit hash
+function fnv1a(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 16777619) >>> 0;
+  }
+  return h.toString(16);
+}
+
+function hashPwd(pwd) { return fnv1a(SALT + pwd); }
+
+const CREDENTIALS = {
+  admin:  { hash: hashPwd("admin123"),  role: "admin"  },
+  viewer: { hash: hashPwd("viewer123"), role: "viewer" }
+};
+
+const DAYS_FR = ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
+const DAYS_AR = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const MONTHS_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const ABS_TYPE_LABELS = { conge:"Congé", repos:"Repos", maladie:"Maladie", formation:"Formation", autre:"Autre" };
+
+let state = {
+  lang: "fr",
+  dark: false,
+  currentUser: null,
+  currentRole: null,
+  sidebarOpen: true,
+  calYear: new Date().getFullYear(),
+  calMonth: new Date().getMonth(),
+  weekOffset: 0,
+  planView: "list",
+  params: { rest: 1, returnWait: 1, planDays: 18 }
+};
+
+let agents = [];
+let history_ = [];   // permanences passées saisies
+let planning = [];   // planning généré (objet { dateStr, agentId, forced })
+let absences = [];
+let swaps = [];
+
+let chartTours = null, chartAbs = null, chartMonthly = null;
+
+/* ══════════════════════════════════════
+   PERSISTENCE
+══════════════════════════════════════ */
+function save() {
+  localStorage.setItem("perm_agents",   JSON.stringify(agents));
+  localStorage.setItem("perm_history",  JSON.stringify(history_));
+  localStorage.setItem("perm_planning", JSON.stringify(planning));
+  localStorage.setItem("perm_absences", JSON.stringify(absences));
+  localStorage.setItem("perm_swaps",    JSON.stringify(swaps));
+  localStorage.setItem("perm_params",   JSON.stringify(state.params));
+}
+
+function load() {
+  try { agents   = JSON.parse(localStorage.getItem("perm_agents"))   || []; } catch(e){ agents=[]; }
+  try { history_ = JSON.parse(localStorage.getItem("perm_history"))  || []; } catch(e){ history_=[]; }
+  try { planning = JSON.parse(localStorage.getItem("perm_planning")) || []; } catch(e){ planning=[]; }
+  try { absences = JSON.parse(localStorage.getItem("perm_absences")) || []; } catch(e){ absences=[]; }
+  try { swaps    = JSON.parse(localStorage.getItem("perm_swaps"))    || []; } catch(e){ swaps=[]; }
+  try { const p  = JSON.parse(localStorage.getItem("perm_params"));   if(p) state.params = {...state.params,...p}; } catch(e){}
+}
+
+function seedAgents() {
+  if (agents.length > 0) return;
+  const initial = [
+    { name:"Tbeur",    mat:"46881" },
+    { name:"Bennaji",  mat:"51220" },
+    { name:"Brakech",  mat:"58967" },
+    { name:"Filahi",   mat:"59085" },
+    { name:"Baha",     mat:"60822" },
+    { name:"Future",   mat:"66009" },
+    { name:"Amzil",    mat:"66219" },
+    { name:"Founoun",  mat:"69155" },
+    { name:"Bouchait", mat:"75285" },
+    { name:"Oudli",    mat:"75466" },
+    { name:"Sejni",    mat:"75743" }
+  ];
+  agents = initial.map((a,i) => ({
+    id: "ag_" + a.mat, name: a.name, mat: a.mat,
+    post: "Agent", tours: 0, lastPerm: null
+  }));
+  save();
+}
+
+/* ══════════════════════════════════════
+   AUTH
+══════════════════════════════════════ */
+function doLogin() {
+  const u = document.getElementById("usr").value.trim();
+  const p = document.getElementById("pwd").value;
+  const cred = CREDENTIALS[u];
+  if (cred && cred.hash === hashPwd(p)) {
+    state.currentUser = u;
+    state.currentRole = cred.role;
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    document.getElementById("user-badge").textContent = "👤 " + u + " (" + cred.role + ")";
+    initApp();
+  } else {
+    document.getElementById("login-err").textContent = "Identifiants incorrects.";
+  }
+}
+
+function doLogout() {
+  state.currentUser = null;
+  document.getElementById("app").style.display = "none";
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("usr").value = "";
+  document.getElementById("pwd").value = "";
+  document.getElementById("login-err").textContent = "";
+}
+
+/* ══════════════════════════════════════
+   INIT
+══════════════════════════════════════ */
+function initApp() {
+  load();
+  seedAgents();
+  populateSelects();
+  setParamInputs();
+  renderStats();
+  buildAndRender();
+  renderHistory();
+  renderAgents();
+  renderAbsences();
+  renderSwaps();
+  renderLeaveWidget();
+  updateHeaderDate();
+  // set default date range for planning
+  const today = toStr(new Date());
+  const fut = toStr(addDays(new Date(), 30));
+  document.getElementById("plan-from").value = today;
+  document.getElementById("plan-to").value   = fut;
+  renderFullPlanning();
+  renderCalendar();
+  renderWeek();
+  renderArchives();
+  updateDashboard();
+}
+
+function updateHeaderDate() {
+  const now = new Date();
+  document.getElementById("header-date").textContent =
+    DAYS_FR[now.getDay()] + " " + now.getDate() + " " + MONTHS_FR[now.getMonth()] + " " + now.getFullYear();
+}
+
+function populateSelects() {
+  const ids = ["hist-agent","abs-agent","sw-from","sw-to"];
+  ids.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = agents.map(a =>
+      `<option value="${a.id}">${a.name} (${a.mat})</option>`
+    ).join("");
+  });
+}
+
+function setParamInputs() {
+  document.getElementById("param-rest").value        = state.params.rest;
+  document.getElementById("param-return-wait").value = state.params.returnWait;
+  document.getElementById("param-days").value        = state.params.planDays;
+}
+
+/* ══════════════════════════════════════
+   DATE HELPERS
+══════════════════════════════════════ */
+function toStr(d) {
+  return d.getFullYear() + "-" +
+    String(d.getMonth()+1).padStart(2,"0") + "-" +
+    String(d.getDate()).padStart(2,"0");
+}
+
+function fromStr(s) {
+  const [y,m,d] = s.split("-").map(Number);
+  return new Date(y, m-1, d);
+}
+
+function addDays(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function formatDate(s) {
+  if (!s) return "-";
+  const d = fromStr(s);
+  return d.getDate() + "/" + (d.getMonth()+1) + "/" + d.getFullYear();
+}
+
+function dayName(s) {
+  if (!s) return "";
+  return state.lang === "ar" ? DAYS_AR[fromStr(s).getDay()] : DAYS_FR[fromStr(s).getDay()];
+}
+
+function isWeekend(s) {
+  const dow = fromStr(s).getDay();
+  return dow === 5 || dow === 6; // Friday or Saturday
+}
+
+/* ══════════════════════════════════════
+   ABSENCE / LEAVE HELPERS
+══════════════════════════════════════ */
+function agentAbsentOn(agentId, dateStr) {
+  return absences.some(a => a.agentId === agentId && dateStr >= a.start && dateStr <= a.end);
+}
+
+function agentReturnWaitOn(agentId, dateStr) {
+  // Fin congé + 1 is also unavailable (R04)
+  return absences.some(a => {
+    if (a.agentId !== agentId || a.type !== "conge") return false;
+    const returnWaitDate = toStr(addDays(fromStr(a.end), state.params.returnWait));
+    return dateStr === returnWaitDate;
+  });
+}
+
+function getForcedReturnDate(absence) {
+  // Fin congé + 2
+  return toStr(addDays(fromStr(absence.end), state.params.returnWait + 1));
+}
+
+function agentUnavailable(agentId, dateStr) {
+  return agentAbsentOn(agentId, dateStr) || agentReturnWaitOn(agentId, dateStr);
+}
+
+// Was agent already assigned (perm or history) on a date?
+function agentAssignedOn(agentId, dateStr) {
+  if (history_.some(h => h.agentId === agentId && h.date === dateStr)) return true;
+  if (planning.some(p => p.agentId === agentId && p.dateStr === dateStr)) return true;
+  return false;
+}
+
+/* ══════════════════════════════════════
+   PLANNING ENGINE
+══════════════════════════════════════ */
+/*
+  Build a rotation queue starting from today.
+  Agents are sorted by (tours ASC, lastPerm ASC) to ensure fairness.
+*/
+function buildQueue() {
+  return [...agents].sort((a,b) => {
+    if (a.tours !== b.tours) return a.tours - b.tours;
+    if (!a.lastPerm && !b.lastPerm) return 0;
+    if (!a.lastPerm) return -1;
+    if (!b.lastPerm) return 1;
+    return a.lastPerm.localeCompare(b.lastPerm);
+  });
+}
+
+/*
+  applyForcedReturns(future, before):
+  For each absence of type "congé", Fin+2 must be assigned to that agent.
+  If the slot is already taken by another agent, swap them.
+*/
+function applyForcedReturns(future, before) {
+  const conges = absences.filter(a => a.type === "conge");
+  for (const cg of conges) {
+    const forcedDate = getForcedReturnDate(cg);
+    // Only within our range
+    if (forcedDate < before || forcedDate > future) continue;
+    const agentId = cg.agentId;
+
+    // Check if already assigned on forced date
+    const existSlot = planning.find(p => p.dateStr === forcedDate);
+    if (existSlot && existSlot.agentId === agentId) {
+      existSlot.forced = true;
+      continue;
+    }
+
+    // Find next free slot for displaced agent (if any)
+    if (existSlot && existSlot.agentId !== agentId) {
+      const displacedId = existSlot.agentId;
+      // Reassign forced agent to this slot
+      existSlot.agentId = agentId;
+      existSlot.forced  = true;
+      // Find next available slot for displaced agent
+      const planDates = planning.map(p => p.dateStr).sort();
+      let inserted = false;
+      for (const d of planDates) {
+        if (d <= forcedDate) continue;
+        const slot = planning.find(p => p.dateStr === d);
+        if (!slot || slot.agentId === displacedId) continue;
+        // Insert before this slot
+        const insertDate = toStr(addDays(fromStr(d), -1));
+        // Just reassign displaced to soonest free date after forcedDate
+        if (!agentUnavailable(displacedId, d) && slot.agentId !== displacedId) {
+          // swap displaced into a later free slot by inserting a new entry
+          planning.push({ dateStr: toStr(addDays(fromStr(forcedDate), 1)), agentId: displacedId, forced: false });
+          inserted = true;
+          break;
+        }
+      }
+    } else if (!existSlot) {
+      // No one was scheduled, add the forced entry
+      planning.push({ dateStr: forcedDate, agentId: agentId, forced: true });
+    }
+  }
+  // Deduplicate and sort
+  planning = deduplicatePlanning(planning);
+}
+
+function deduplicatePlanning(arr) {
+  const seen = new Set();
+  return arr.filter(p => {
+    if (seen.has(p.dateStr)) return false;
+    seen.add(p.dateStr);
+    return true;
+  }).sort((a,b) => a.dateStr.localeCompare(b.dateStr));
+}
+
+function buildFullPlanning() {
+  const today = toStr(new Date());
+  const days  = state.params.planDays;
+  const future = toStr(addDays(new Date(), days + 10));
+
+  // Remove only future planning entries (keep past ones)
+  planning = planning.filter(p => p.dateStr < today);
+
+  const queue = buildQueue();
+  let qi = 0;
+  // Track recent rest periods per agent
+  const lastAssigned = {};
+  agents.forEach(a => {
+    const hist = history_.filter(h => h.agentId === a.id).map(h => h.date);
+    const plan = planning.filter(p => p.agentId === a.id).map(p => p.dateStr);
+    const all  = [...hist, ...plan].sort();
+    lastAssigned[a.id] = all.length ? all[all.length-1] : null;
+  });
+
+  for (let i = 0; i < days; i++) {
+    const d = toStr(addDays(new Date(), i));
+    if (planning.find(p => p.dateStr === d)) continue; // already set
+
+    // Try to find next available agent from queue
+    let found = false;
+    for (let attempt = 0; attempt < agents.length * 2; attempt++) {
+      const ag = queue[qi % queue.length];
+      qi++;
+      if (agentUnavailable(ag.id, d)) continue;
+
+      // Check rest days since last assignment
+      const last = lastAssigned[ag.id];
+      if (last) {
+        const diff = Math.round((fromStr(d) - fromStr(last)) / 86400000);
+        if (diff <= state.params.rest) continue;
+      }
+
+      planning.push({ dateStr: d, agentId: ag.id, forced: false });
+      lastAssigned[ag.id] = d;
+      found = true;
+      break;
+    }
+
+    if (!found) {
+      // fallback: pick anyone available
+      for (const ag of agents) {
+        if (!agentUnavailable(ag.id, d)) {
+          planning.push({ dateStr: d, agentId: ag.id, forced: false });
+          lastAssigned[ag.id] = d;
+          break;
+        }
+      }
+    }
+  }
+
+  planning = deduplicatePlanning(planning);
+  applyForcedReturns(future, today);
+  save();
+}
+
+function rebuildFrom(dateStr) {
+  // Remove planning from dateStr onwards
+  planning = planning.filter(p => p.dateStr < dateStr);
+  buildFullPlanning();
+  applyForcedReturns(toStr(addDays(new Date(), state.params.planDays + 10)), toStr(new Date()));
+  save();
+  buildAndRender();
+}
+
+function buildAndRender() {
+  buildFullPlanning();
+  render18Days();
+  renderStats();
+  renderLeaveWidget();
+  renderFullPlanning();
+  renderCalendar();
+  renderWeek();
+  renderArchives();
+}
+
+/* ══════════════════════════════════════
+   RENDER — 18 DAYS
+══════════════════════════════════════ */
+function render18Days() {
+  const today = toStr(new Date());
+  const days  = state.params.planDays;
+  const grid  = document.getElementById("planning-grid18");
+  let html = "";
+  for (let i = 0; i < days; i++) {
+    const d  = toStr(addDays(new Date(), i));
+    const slot = planning.find(p => p.dateStr === d);
+    // Check for swap override
+    const swap = swaps.find(s => s.date === d);
+    let agentId = slot ? slot.agentId : null;
+    let forced  = slot ? slot.forced  : false;
+    let swapped = false;
+    if (swap) { agentId = swap.toId; swapped = true; }
+    const ag = agents.find(a => a.id === agentId);
+    const isToday = d === today;
+    const isWE    = isWeekend(d);
+    let cls = "day-card";
+    if (isToday) cls += " today";
+    if (isWE)    cls += " weekend";
+    if (forced)  cls += " forced-return";
+    html += `<div class="${cls}">
+      <div class="day-card-date">${formatDate(d)}</div>
+      <div class="day-card-day">${dayName(d)}</div>
+      <div class="day-card-agent">
+        ${ag ? ag.name : '<em>Non planifié</em>'}
+        ${forced  ? '<span class="badge badge-return">Retour forcé</span>' : ""}
+        ${swapped ? '<span class="badge badge-swap">Échange</span>' : ""}
+        ${isWE    ? '<span class="badge badge-warning">WE</span>' : ""}
+        ${isToday ? '<span class="badge badge-info">Aujourd\'hui</span>' : ""}
+      </div>
+      ${ag ? `<div style="font-size:0.78rem;color:var(--text-muted);">Mat: ${ag.mat}</div>` : ""}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+/* ══════════════════════════════════════
+   STATS
+══════════════════════════════════════ */
+function renderStats() {
+  const todayStr = toStr(new Date());
+  const totalPlan = planning.filter(p => p.dateStr >= todayStr).length;
+  const totalAbs  = absences.filter(a => a.end >= todayStr).length;
+  const totalHist = history_.length;
+  const totalSwap = swaps.length;
+
+  document.getElementById("stats-grid").innerHTML = `
+    <div class="stat-card"><div class="stat-icon">📋</div><div><div class="stat-label">Tours planifiés</div><div class="stat-value">${totalPlan}</div></div></div>
+    <div class="stat-card"><div class="stat-icon">👥</div><div><div class="stat-label">Agents actifs</div><div class="stat-value">${agents.length}</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🛌</div><div><div class="stat-label">Absences en cours</div><div class="stat-value">${totalAbs}</div></div></div>
+    <div class="stat-card"><div class="stat-icon">📜</div><div><div class="stat-label">Tours historique</div><div class="stat-value">${totalHist}</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🔄</div><div><div class="stat-label">Échanges</div><div class="stat-value">${totalSwap}</div></div></div>
+  `;
+}
+
+/* ══════════════════════════════════════
+   LEAVE WIDGET (sidebar)
+══════════════════════════════════════ */
+function renderLeaveWidget() {
+  const today = new Date();
+  const in7   = addDays(today, 7);
+  const todayStr = toStr(today);
+  const in7Str   = toStr(in7);
+  const conges = absences.filter(a => a.type === "conge");
+  let html = "";
+  if (!conges.length) { html = '<em style="opacity:0.6">Aucun congé</em>'; }
+  for (const cg of conges) {
+    const ag  = agents.find(a => a.id === cg.agentId);
+    const frd = getForcedReturnDate(cg);
+    const isUpcoming = frd >= todayStr && frd <= in7Str;
+    html += `<div class="leave-return-item">
+      <strong>${ag ? ag.name : "?"}</strong><br/>
+      <span style="font-size:0.75rem;">Congé: ${formatDate(cg.start)} → ${formatDate(cg.end)}</span><br/>
+      <span style="font-size:0.75rem;">Retour perm: <strong>${formatDate(frd)}</strong></span>
+      ${isUpcoming ? `<div class="leave-return-alert">⚡ Retour dans 7 jours!</div>` : ""}
+    </div>`;
+  }
+  document.getElementById("leave-widget-content").innerHTML = html;
+}
+
+/* ══════════════════════════════════════
+   HISTORY (Tours Précédents)
+══════════════════════════════════════ */
+function addHistory() {
+  const date = document.getElementById("hist-date").value;
+  const agId = document.getElementById("hist-agent").value;
+  const note = document.getElementById("hist-note").value.trim();
+  if (!date || !agId) return alert("Date et agent requis.");
+  if (history_.some(h => h.date === date)) return alert("Un tour existe déjà pour cette date.");
+  history_.push({ id: "h_"+Date.now(), date, agentId: agId, note });
+  history_.sort((a,b) => a.date.localeCompare(b.date));
+  save();
+  renderHistory();
+  renderArchives();
+  updateDashboard();
+}
+
+function deleteHistory(id) {
+  if (!confirm("Supprimer ce tour ?")) return;
+  history_ = history_.filter(h => h.id !== id);
+  save();
+  renderHistory();
+  renderArchives();
+}
+
+function renderHistory(filter) {
+  const tbody = document.getElementById("history-tbody");
+  let rows = [...history_].sort((a,b) => b.date.localeCompare(a.date));
+  if (filter) rows = rows.filter(h => {
+    const ag = agents.find(a => a.id === h.agentId);
+    return (ag && ag.name.toLowerCase().includes(filter.toLowerCase())) ||
+           h.date.includes(filter);
+  });
+  tbody.innerHTML = rows.map(h => {
+    const ag = agents.find(a => a.id === h.agentId);
+    return `<tr><td>${formatDate(h.date)}</td><td>${ag ? ag.name : "?"}</td><td>${h.note||"-"}</td>
+      <td>${state.currentRole==="admin"?`<button class="btn btn-danger btn-sm" onclick="deleteHistory('${h.id}')">🗑️</button>`:"—"}</td></tr>`;
+  }).join("") || "<tr><td colspan='4' style='text-align:center;opacity:0.5'>Aucun tour enregistré</td></tr>";
+}
+
+/* ══════════════════════════════════════
+   AGENTS
+══════════════════════════════════════ */
+function addAgent() {
+  const name = document.getElementById("ag-name").value.trim();
+  const mat  = document.getElementById("ag-mat").value.trim();
+  const post = document.getElementById("ag-post").value.trim();
+  if (!name || !mat) return alert("Nom et matricule requis.");
+  if (agents.some(a => a.mat === mat)) return alert("Matricule déjà existant.");
+  agents.push({ id:"ag_"+mat+"_"+Date.now(), name, mat, post:post||"Agent", tours:0, lastPerm:null });
+  document.getElementById("ag-name").value = "";
+  document.getElementById("ag-mat").value  = "";
+  document.getElementById("ag-post").value = "";
+  save();
+  populateSelects();
+  renderAgents();
+}
+
+function deleteAgent(id) {
+  if (!confirm("Supprimer cet agent ? Ses tours seront également supprimés.")) return;
+  agents   = agents.filter(a => a.id !== id);
+  history_ = history_.filter(h => h.agentId !== id);
+  planning = planning.filter(p => p.agentId !== id);
+  save();
+  populateSelects();
+  renderAgents();
+  buildAndRender();
+}
+
+function renderAgents(filter) {
+  document.getElementById("agent-count").textContent = agents.length;
+  const tbody = document.getElementById("agents-tbody");
+  let list = agents;
+  if (filter) list = list.filter(a => a.name.toLowerCase().includes(filter.toLowerCase()) || a.mat.includes(filter));
+  const counts = {};
+  [...history_, ...planning].forEach(e => { counts[e.agentId] = (counts[e.agentId]||0)+1; });
+  tbody.innerHTML = list.map((a,i) => {
+    const tours = (history_.filter(h=>h.agentId===a.id).length) + (planning.filter(p=>p.agentId===a.id).length);
+    const lastP  = [...history_.filter(h=>h.agentId===a.id).map(h=>h.date),
+                    ...planning.filter(p=>p.agentId===a.id).map(p=>p.dateStr)].sort().pop();
+    return `<tr>
+      <td>${i+1}</td><td><strong>${a.name}</strong></td><td>${a.mat}</td><td>${a.post}</td>
+      <td>${tours}</td><td>${lastP ? formatDate(lastP) : "-"}</td>
+      <td>${state.currentRole==="admin"?`<button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">🗑️</button>`:"—"}</td>
+    </tr>`;
+  }).join("") || "<tr><td colspan='7' style='text-align:center;opacity:0.5'>Aucun agent</td></tr>";
+}
+
+/* ══════════════════════════════════════
+   ABSENCES
+══════════════════════════════════════ */
+function addAbsence() {
+  const agentId = document.getElementById("abs-agent").value;
+  const type    = document.getElementById("abs-type").value;
+  const start   = document.getElementById("abs-start").value;
+  const end     = document.getElementById("abs-end").value;
+  const reason  = document.getElementById("abs-reason").value.trim();
+  if (!agentId || !start || !end) return alert("Agent, début et fin requis.");
+  if (end < start) return alert("La date de fin doit être après le début.");
+  absences.push({ id:"abs_"+Date.now(), agentId, type, start, end, reason });
+  save();
+  renderAbsences();
+  renderLeaveWidget();
+  buildAndRender();
+  // Show forced return preview for congé
+  if (type === "conge") {
+    const frd = toStr(addDays(fromStr(end), state.params.returnWait + 1));
+    const ag  = agents.find(a => a.id === agentId);
+    const div = document.getElementById("forced-return-preview");
+    div.style.display = "flex";
+    div.textContent = `✅ Retour forcé planifié le ${formatDate(frd)} pour ${ag ? ag.name : "cet agent"} (Règle R04)`;
+  }
+}
+
+function deleteAbsence(id) {
+  if (!confirm("Supprimer cette absence ?")) return;
+  absences = absences.filter(a => a.id !== id);
+  save();
+  renderAbsences();
+  renderLeaveWidget();
+  buildAndRender();
+}
+
+function renderAbsences() {
+  const tbody = document.getElementById("abs-tbody");
+  const todayStr = toStr(new Date());
+  const rows = absences.sort((a,b) => a.start.localeCompare(b.start));
+  tbody.innerHTML = rows.map(a => {
+    const ag  = agents.find(ag => ag.id === a.agentId);
+    const frd = a.type === "conge" ? formatDate(getForcedReturnDate(a)) : "-";
+    const isActive = a.start <= todayStr && a.end >= todayStr;
+    return `<tr class="${isActive ? "forced-return-row" : ""}">
+      <td>${ag ? ag.name : "?"}</td>
+      <td><span class="badge badge-warning">${ABS_TYPE_LABELS[a.type]||a.type}</span></td>
+      <td>${formatDate(a.start)}</td><td>${formatDate(a.end)}</td>
+      <td>${a.type==="conge"?`<span class="badge badge-return">${frd}</span>`:"-"}</td>
+      <td>${a.reason||"-"}</td>
+      <td>${state.currentRole==="admin"?`<button class="btn btn-danger btn-sm" onclick="deleteAbsence('${a.id}')">🗑️</button>`:"—"}</td>
+    </tr>`;
+  }).join("") || "<tr><td colspan='7' style='text-align:center;opacity:0.5'>Aucune absence</td></tr>";
+}
+
+/* ══════════════════════════════════════
+   SWAPS
+══════════════════════════════════════ */
+function addSwap() {
+  const date   = document.getElementById("sw-date").value;
+  const fromId = document.getElementById("sw-from").value;
+  const toId   = document.getElementById("sw-to").value;
+  const reason = document.getElementById("sw-reason").value.trim();
+  if (!date || !fromId || !toId) return alert("Tous les champs requis.");
+  if (fromId === toId) return alert("Les deux agents doivent être différents.");
+  swaps.push({ id:"sw_"+Date.now(), date, fromId, toId, reason });
+  save();
+  renderSwaps();
+  buildAndRender();
+}
+
+function deleteSwap(id) {
+  if (!confirm("Supprimer cet échange ?")) return;
+  swaps = swaps.filter(s => s.id !== id);
+  save();
+  renderSwaps();
+  buildAndRender();
+}
+
+function renderSwaps() {
+  const tbody = document.getElementById("swap-tbody");
+  tbody.innerHTML = swaps.sort((a,b) => b.date.localeCompare(a.date)).map(s => {
+    const fa = agents.find(a => a.id === s.fromId);
+    const ta = agents.find(a => a.id === s.toId);
+    return `<tr>
+      <td>${formatDate(s.date)}</td>
+      <td>${fa ? fa.name : "?"}</td>
+      <td>${ta ? ta.name : "?"} <span class="badge badge-swap">Remplaçant</span></td>
+      <td>${s.reason||"-"}</td>
+      <td>${state.currentRole==="admin"?`<button class="btn btn-danger btn-sm" onclick="deleteSwap('${s.id}')">🗑️</button>`:"—"}</td>
+    </tr>`;
+  }).join("") || "<tr><td colspan='5' style='text-align:center;opacity:0.5'>Aucun échange</td></tr>";
+}
+
+/* ══════════════════════════════════════
+   FULL PLANNING VIEW
+══════════════════════════════════════ */
+function renderFullPlanning() {
+  const from = document.getElementById("plan-from").value;
+  const to   = document.getElementById("plan-to").value;
+  if (!from || !to) return;
+  const tbody = document.getElementById("full-plan-tbody");
+  let html = "";
+  let cur = fromStr(from);
+  const toDate = fromStr(to);
+  while (cur <= toDate) {
+    const d    = toStr(cur);
+    const slot = planning.find(p => p.dateStr === d);
+    const swap = swaps.find(s => s.date === d);
+    let agentId = slot ? slot.agentId : null;
+    let forced  = slot ? slot.forced : false;
+    if (swap) agentId = swap.toId;
+    const ag = agents.find(a => a.id === agentId);
+    const isWE = isWeekend(d);
+    html += `<tr class="${forced ? "forced-return-row" : ""}">
+      <td>${formatDate(d)}</td>
+      <td>${dayName(d)}</td>
+      <td>${ag ? ag.name : '<em>Non planifié</em>'}</td>
+      <td>${ag ? ag.mat : "-"}</td>
+      <td>
+        ${forced  ? '<span class="badge badge-return">Retour forcé</span>' : ""}
+        ${swap    ? '<span class="badge badge-swap">Échange</span>'        : ""}
+        ${isWE    ? '<span class="badge badge-warning">WE</span>'          : ""}
+      </td>
+    </tr>`;
+    cur = addDays(cur, 1);
+  }
+  tbody.innerHTML = html || "<tr><td colspan='5' style='text-align:center;opacity:0.5'>Aucune donnée</td></tr>";
+}
+
+/* ══════════════════════════════════════
+   CALENDAR VIEW
+══════════════════════════════════════ */
+function renderCalendar() {
+  const y = state.calYear, m = state.calMonth;
+  document.getElementById("cal-title").textContent = MONTHS_FR[m] + " " + y;
+  // Headers
+  const hdr = document.getElementById("cal-headers");
+  hdr.innerHTML = DAYS_FR.map(d => `<div class="cal-header">${d.slice(0,3)}</div>`).join("");
+  // First day padding
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const todayStr = toStr(new Date());
+  let html = Array(firstDay).fill(`<div></div>`).join("");
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds   = y + "-" + String(m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+    const slot = planning.find(p => p.dateStr === ds);
+    const swap = swaps.find(s => s.date === ds);
+    let agentId = slot ? slot.agentId : null;
+    if (swap) agentId = swap.toId;
+    const ag  = agents.find(a => a.id === agentId);
+    const isT = ds === todayStr;
+    const isFR = slot && slot.forced;
+    html += `<div class="cal-day ${isT?"today-cal":""} ${isFR?"forced-return":""}">
+      <div class="cal-num">${d}</div>
+      <div class="cal-agent">${ag ? ag.name : ""}</div>
+      ${isFR ? '<span class="badge badge-return" style="font-size:0.65rem;">↩</span>' : ""}
+    </div>`;
+  }
+  document.getElementById("calendar-body").innerHTML = html;
+}
+
+function calNav(dir) {
+  state.calMonth += dir;
+  if (state.calMonth < 0)  { state.calMonth = 11; state.calYear--; }
+  if (state.calMonth > 11) { state.calMonth = 0;  state.calYear++; }
+  renderCalendar();
+}
+
+/* ══════════════════════════════════════
+   WEEK VIEW
+══════════════════════════════════════ */
+function renderWeek() {
+  const today = new Date();
+  const dow   = today.getDay();
+  const monday = addDays(today, -dow + 1 + state.weekOffset * 7);
+  const sunday = addDays(monday, 6);
+  document.getElementById("week-title").textContent =
+    "Semaine du " + formatDate(toStr(monday)) + " au " + formatDate(toStr(sunday));
+  const todayStr = toStr(today);
+  let html = "";
+  for (let i = 0; i < 7; i++) {
+    const d    = toStr(addDays(monday, i));
+    const slot = planning.find(p => p.dateStr === d);
+    const swap = swaps.find(s => s.date === d);
+    let agentId = slot ? slot.agentId : null;
+    let forced  = slot ? slot.forced : false;
+    if (swap) agentId = swap.toId;
+    const ag = agents.find(a => a.id === agentId);
+    const isT = d === todayStr;
+    html += `<tr class="${forced?"forced-return-row":""}${isT?" style='font-weight:700;'":""}">
+      <td>${DAYS_FR[fromStr(d).getDay()]}</td>
+      <td>${formatDate(d)}</td>
+      <td>${ag ? ag.name : "<em>Non planifié</em>"}</td>
+      <td>
+        ${forced ? '<span class="badge badge-return">Retour forcé</span>' : ""}
+        ${swap   ? '<span class="badge badge-swap">Échange</span>'        : ""}
+        ${isT    ? '<span class="badge badge-info">Aujourd\'hui</span>'   : ""}
+      </td>
+    </tr>`;
+  }
+  document.getElementById("week-tbody").innerHTML = html;
+}
+
+function weekNav(dir) {
+  state.weekOffset += dir;
+  renderWeek();
+}
+
+/* ══════════════════════════════════════
+   ARCHIVES
+══════════════════════════════════════ */
+function renderArchives(filter) {
+  const all = [
+    ...history_.map(h => ({ date:h.date, agentId:h.agentId, type:"Historique", note:h.note||"" })),
+    ...planning.map(p => ({ date:p.dateStr, agentId:p.agentId, type:p.forced?"Retour forcé":"Planifié", note:"" }))
+  ].sort((a,b) => b.date.localeCompare(a.date));
+  const rows = filter ? all.filter(r => {
+    const ag = agents.find(a => a.id === r.agentId);
+    return (ag && ag.name.toLowerCase().includes(filter.toLowerCase())) || r.date.includes(filter);
+  }) : all;
+  document.getElementById("archive-tbody").innerHTML = rows.map(r => {
+    const ag = agents.find(a => a.id === r.agentId);
+    return `<tr class="${r.type==="Retour forcé"?"forced-return-row":""}">
+      <td>${formatDate(r.date)}</td>
+      <td>${ag ? ag.name : "?"}</td>
+      <td>${ag ? ag.mat : "-"}</td>
+      <td><span class="badge ${r.type==="Retour forcé"?"badge-return":r.type==="Historique"?"badge-info":"badge-primary"}">${r.type}</span></td>
+      <td>${r.note||"-"}</td>
+    </tr>`;
+  }).join("") || "<tr><td colspan='5' style='text-align:center;opacity:0.5'>Aucune donnée</td></tr>";
+}
+
+/* ══════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════ */
+function updateDashboard() {
+  // Stats
+  const totalAll = history_.length + planning.length;
+  const forcedCount = planning.filter(p => p.forced).length;
+  document.getElementById("dash-stats").innerHTML = `
+    <div class="stat-card"><div class="stat-icon">📋</div><div><div class="stat-label">Total permanences</div><div class="stat-value">${totalAll}</div></div></div>
+    <div class="stat-card"><div class="stat-icon">↩️</div><div><div class="stat-label">Retours forcés</div><div class="stat-value">${forcedCount}</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🛌</div><div><div class="stat-label">Absences totales</div><div class="stat-value">${absences.length}</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🔄</div><div><div class="stat-label">Échanges totaux</div><div class="stat-value">${swaps.length}</div></div></div>
+  `;
+
+  // Chart 1 — tours per agent
+  const agentTours = agents.map(a => ({
+    name: a.name,
+    count: history_.filter(h => h.agentId === a.id).length + planning.filter(p => p.agentId === a.id).length
+  }));
+  const colors = ["#3498db","#2ecc71","#e74c3c","#f39c12","#9b59b6","#1abc9c","#e67e22","#34495e","#16a085","#8e44ad","#c0392b"];
+  if (chartTours) chartTours.destroy();
+  chartTours = new Chart(document.getElementById("chart-tours"), {
+    type: "bar",
+    data: {
+      labels: agentTours.map(a => a.name),
+      datasets: [{ label:"Tours", data: agentTours.map(a => a.count), backgroundColor: colors }]
+    },
+    options: { responsive:true, maintainAspectRatio:true, plugins:{ legend:{display:false} } }
+  });
+
+  // Chart 2 — absence types
+  const absTypeCounts = {};
+  absences.forEach(a => { absTypeCounts[ABS_TYPE_LABELS[a.type]||a.type] = (absTypeCounts[ABS_TYPE_LABELS[a.type]||a.type]||0)+1; });
+  if (chartAbs) chartAbs.destroy();
+  chartAbs = new Chart(document.getElementById("chart-abs"), {
+    type: "doughnut",
+    data: {
+      labels: Object.keys(absTypeCounts),
+      datasets:[{ data: Object.values(absTypeCounts), backgroundColor: colors }]
+    },
+    options:{ responsive:true, maintainAspectRatio:true }
+  });
+
+  // Chart 3 — monthly trend
+  const monthly = {};
+  [...history_, ...planning].forEach(e => {
+    const d = e.date || e.dateStr;
+    if (!d) return;
+    const key = d.slice(0,7);
+    monthly[key] = (monthly[key]||0)+1;
+  });
+  const mKeys = Object.keys(monthly).sort().slice(-12);
+  if (chartMonthly) chartMonthly.destroy();
+  chartMonthly = new Chart(document.getElementById("chart-monthly"), {
+    type: "line",
+    data: {
+      labels: mKeys,
+      datasets:[{ label:"Permanences/mois", data:mKeys.map(k=>monthly[k]), borderColor:"#1a6fc4", backgroundColor:"rgba(26,111,196,0.1)", fill:true, tension:0.3 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:true }
+  });
+}
+
+/* ══════════════════════════════════════
+   PARAMS
+══════════════════════════════════════ */
+function saveParams() {
+  state.params.rest        = parseInt(document.getElementById("param-rest").value)||1;
+  state.params.returnWait  = parseInt(document.getElementById("param-return-wait").value)||1;
+  state.params.planDays    = parseInt(document.getElementById("param-days").value)||18;
+  save();
+  buildAndRender();
+  alert("Paramètres sauvegardés.");
+}
+
+/* ══════════════════════════════════════
+   EXPORT
+══════════════════════════════════════ */
+function exportJSON() {
+  const data = { agents, history_, planning, absences, swaps, params: state.params };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:"application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = "permanence_export.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.agents)   agents   = data.agents;
+      if (data.history_) history_ = data.history_;
+      if (data.planning) planning = data.planning;
+      if (data.absences) absences = data.absences;
+      if (data.swaps)    swaps    = data.swaps;
+      if (data.params)   state.params = {...state.params, ...data.params};
+      save();
+      populateSelects();
+      setParamInputs();
+      buildAndRender();
+      renderHistory();
+      renderAgents();
+      renderAbsences();
+      renderSwaps();
+      renderArchives();
+      updateDashboard();
+      alert("Import réussi !");
+    } catch(err) { alert("Erreur d'import : " + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function exportExcel() {
+  const rows = [["Date","Jour","Agent","Matricule","Type","Note"]];
+  [...history_.map(h => ({ date:h.date, agentId:h.agentId, type:"Historique", note:h.note||"" })),
+   ...planning.map(p => ({ date:p.dateStr, agentId:p.agentId, type:p.forced?"Retour forcé":"Planifié", note:"" }))]
+  .sort((a,b) => a.date.localeCompare(b.date))
+  .forEach(r => {
+    const ag = agents.find(a => a.id === r.agentId);
+    rows.push([formatDate(r.date), dayName(r.date), ag?ag.name:"?", ag?ag.mat:"-", r.type, r.note]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Permanences");
+  XLSX.writeFile(wb, "permanence_export.xlsx");
+}
+
+async function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const el = document.getElementById("planning-grid18");
+  const canvas = await html2canvas(el, { scale:1.5 });
+  const img = canvas.toDataURL("image/png");
+  const pdf = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
+  pdf.setFontSize(14);
+  pdf.text("Planning Permanence EXP", 10, 12);
+  pdf.setFontSize(9);
+  pdf.text("Généré le " + new Date().toLocaleDateString("fr-FR"), 10, 18);
+  const w = pdf.internal.pageSize.getWidth() - 20;
+  const h = (canvas.height * w) / canvas.width;
+  pdf.addImage(img, "PNG", 10, 22, w, h);
+  pdf.save("planning_permanence.pdf");
+}
+
+/* ══════════════════════════════════════
+   UI HELPERS
+══════════════════════════════════════ */
+function showTab(idx) {
+  document.querySelectorAll(".tab-panel").forEach((p,i) => p.classList.toggle("active", i===idx));
+  document.querySelectorAll(".nav-tab").forEach(b => b.classList.toggle("active", parseInt(b.dataset.tab)===idx));
+  if (idx === 6) updateDashboard();
+  if (idx === 7) renderArchives();
+}
+
+function toggleSidebar() {
+  state.sidebarOpen = !state.sidebarOpen;
+  document.getElementById("sidebar").classList.toggle("collapsed", !state.sidebarOpen);
+}
+
+function toggleDark() {
+  state.dark = !state.dark;
+  document.body.classList.toggle("dark", state.dark);
+  document.getElementById("dark-btn").textContent = state.dark ? "☀️ Clair" : "🌙 Sombre";
+  localStorage.setItem("perm_dark", state.dark ? "1" : "0");
+}
+
+function toggleLang() {
+  state.lang = state.lang === "fr" ? "ar" : "fr";
+  document.getElementById("lang-btn").textContent = state.lang === "fr" ? "🌐 AR" : "🌐 FR";
+  document.documentElement.lang = state.lang;
+  document.documentElement.dir  = state.lang === "ar" ? "rtl" : "ltr";
+  render18Days();
+  renderFullPlanning();
+  renderCalendar();
+  renderWeek();
+}
+
+function switchPlanView(view, btn) {
+  state.planView = view;
+  document.getElementById("plan-list-view").style.display  = view === "list"  ? "" : "none";
+  document.getElementById("plan-month-view").style.display = view === "month" ? "" : "none";
+  document.getElementById("plan-week-view").style.display  = view === "week"  ? "" : "none";
+  document.querySelectorAll(".inner-tab").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+  if (view === "month") renderCalendar();
+  if (view === "week")  renderWeek();
+}
+
+function openModal(title, body) {
+  document.getElementById("modal-title").textContent = title;
+  document.getElementById("modal-body").innerHTML    = body;
+  document.getElementById("modal-overlay").classList.add("open");
+}
+function closeModal() { document.getElementById("modal-overlay").classList.remove("open"); }
+
+function resetData() {
+  if (!confirm("Réinitialiser TOUTES les données ? Cette action est irréversible.")) return;
+  agents=[]; history_=[]; planning=[]; absences=[]; swaps=[];
+  localStorage.removeItem("perm_agents"); localStorage.removeItem("perm_history");
+  localStorage.removeItem("perm_planning"); localStorage.removeItem("perm_absences");
+  localStorage.removeItem("perm_swaps"); localStorage.removeItem("perm_params");
+  seedAgents();
+  populateSelects();
+  buildAndRender();
+  renderHistory();
+  renderAgents();
+  renderAbsences();
+  renderSwaps();
+  renderArchives();
+  updateDashboard();
+  alert("Données réinitialisées.");
+}
+
+/* ══════════════════════════════════════
+   DARK MODE PERSISTENCE
+══════════════════════════════════════ */
+(function() {
+  if (localStorage.getItem("perm_dark") === "1") {
+    state.dark = true;
+    document.body.classList.add("dark");
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("dark-btn");
+      if (btn) btn.textContent = "☀️ Clair";
+    });
+  }
+})();
+</script>
+</body>
+</html>
