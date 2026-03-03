@@ -1901,13 +1901,54 @@ function renderTab2() {
       const ag = firstFuture.agents.find(a => a.officiel);
       html += '<div class="result-banner mt-2">';
       html += '<h3>🎯 ' + t('nextPerm') + ': <strong>' + (ag ? ag.nom : '—') + '</strong> (' + (ag ? ag.matricule : '') + ') — ' + t('startingFrom') + ' ' + firstFuture.date + '</h3>';
-      const rOrder = STATE.settings.mode === 'WEEK' ? getActiveSorted() : buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
-      html += '<p>Ordre de rotation:</p><div class="rotation-list">';
-      rOrder.forEach((a, i) => {
-        const isCur = ag && a.nom === ag.nom;
+
+      // Build base agents list
+      const _rCycle = STATE.settings.mode !== 'WEEK' ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents) : null;
+      const baseAgents = STATE.settings.mode === 'WEEK'
+        ? getActiveSorted()
+        : (_rCycle && _rCycle.length ? _rCycle : getActiveSorted());
+
+      // Find next semaine agent
+      const today2 = todayISO();
+      const planFuturSem2 = STATE.planning.filter(e => !e.isPrev && !e.isWeekend && e.dateISO >= today2).sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+      const planFuturWE2  = STATE.planning.filter(e => !e.isPrev &&  e.isWeekend && e.dateISO >= today2).sort((a,b) => a.dateISO.localeCompare(b.dateISO));
+      const nextSemAgent2 = planFuturSem2[0] ? (planFuturSem2[0].agents.find(a => a.officiel) || {}).nom : null;
+      const nextWEAgent2  = planFuturWE2[0]  ? (planFuturWE2[0].agents.find(a => a.officiel)  || {}).nom : null;
+
+      // Build rotation order starting from next agent
+      function buildRotFrom2(startName) {
+        if (!baseAgents.length) return baseAgents;
+        const idx = baseAgents.findIndex(a => a.nom === startName);
+        if (idx < 0) return baseAgents;
+        return [...baseAgents.slice(idx), ...baseAgents.slice(0, idx)];
+      }
+
+      const orderSem2 = buildRotFrom2(nextSemAgent2);
+      const orderWE2  = buildRotFrom2(nextWEAgent2);
+
+      // Render semaine rotation
+      html += '<div style="margin-top:.8rem;display:flex;gap:1rem;flex-wrap:wrap">';
+      html += '<div style="flex:1;min-width:220px">';
+      html += '<p style="font-weight:600;margin-bottom:.4rem">📋 Ordre de rotation du lundi au vendredi :</p>';
+      html += '<div class="rotation-list">';
+      orderSem2.forEach((a, i) => {
+        const isCur = a.nom === nextSemAgent2;
         html += '<span class="rotation-chip' + (isCur ? ' current' : '') + '">' + (i+1) + '. ' + a.nom + '</span>';
       });
       html += '</div></div>';
+
+      // Render week-end rotation
+      html += '<div style="flex:1;min-width:220px">';
+      html += '<p style="font-weight:600;margin-bottom:.4rem;color:#a8d8f0">📋 Ordre de rotation samedi et dimanche :</p>';
+      html += '<div class="rotation-list">';
+      orderWE2.forEach((a, i) => {
+        const isCur = a.nom === nextWEAgent2;
+        html += '<span class="rotation-chip' + (isCur ? ' current' : '') + '">' + (i+1) + '. ' + a.nom + '</span>';
+      });
+      html += '</div></div>';
+
+      html += '</div>'; // end flex row
+      html += '</div>'; // end result-banner
     }
   }
 
