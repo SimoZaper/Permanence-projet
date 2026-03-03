@@ -883,6 +883,13 @@ function escHtml(str) {
 function getActiveSorted() {
   return STATE.agents.filter(a => a.actif).sort((a,b) => a.matricule - b.matricule);
 }
+// Returns active agents who are NOT on leave/absence today
+function getAvailableToday() {
+  const today = todayISO();
+  return getActiveSorted().filter(a =>
+    !STATE.repos.some(r => r.agent === a.nom && r.debut <= today && r.fin >= today)
+  );
+}
 function getAgentByName(nom) {
   return STATE.agents.find(a => a.nom === nom);
 }
@@ -1578,7 +1585,7 @@ function renderTab1() {
   bannerHTML += '<div class="banner-divider"></div>';
   bannerHTML += '<div class="banner-item"><div class="val">' + (STATE.settings.mode === 'WEEK' ? '📆' : '🔄') + '</div><div class="lbl">' + (STATE.settings.mode === 'WEEK' ? t('modeWeek') : t('modeContinu')) + '</div></div>';
   bannerHTML += '<div class="banner-divider"></div>';
-  bannerHTML += '<div class="banner-item"><div class="val">' + agents.length + '</div><div class="lbl">' + t('activeAgents') + '</div></div>';
+  bannerHTML += '<div class="banner-item"><div class="val">' + getAvailableToday().length + '</div><div class="lbl">' + t('activeAgents') + '</div></div>';
   bannerHTML += '</div>';
 
   // Next 18 days cards
@@ -2295,7 +2302,10 @@ function renderCalWeek() {
   // Rotation orders block
   html += '<div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">';
 
-  const agents = getActiveSorted();
+  const _cycle = STATE.settings.mode !== 'WEEK' ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents) : null;
+  const agents = STATE.settings.mode === 'WEEK'
+    ? getActiveSorted()
+    : (_cycle.length ? _cycle : getActiveSorted());
   const today2 = todayISO();
   const planFuturSem = STATE.planning.filter(e => !e.isPrev && !e.isWeekend && e.dateISO >= today2).sort((a,b)=>a.dateISO.localeCompare(b.dateISO));
   const planFuturWE  = STATE.planning.filter(e => !e.isPrev &&  e.isWeekend && e.dateISO >= today2).sort((a,b)=>a.dateISO.localeCompare(b.dateISO));
@@ -2790,7 +2800,7 @@ function renderTab7() {
   html += '<div class="stat-card"><div class="stat-icon blue">📅</div><div class="stat-info"><div class="n">' + total + '</div><div class="l">' + t('daysPlanned') + '</div></div></div>';
   html += '<div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="n">' + pct + '%</div><div class="l">' + t('coverage') + '</div></div></div>';
   html += '<div class="stat-card"><div class="stat-icon orange">⚖️</div><div class="stat-info"><div class="n">' + equity + '%</div><div class="l">' + t('equityRate') + '</div></div></div>';
-  html += '<div class="stat-card"><div class="stat-icon purple">👥</div><div class="stat-info"><div class="n">' + agents.length + '</div><div class="l">' + t('activeAgents') + '</div></div></div>';
+  html += '<div class="stat-card"><div class="stat-icon purple">👥</div><div class="stat-info"><div class="n">' + getAvailableToday().length + '</div><div class="l">' + t('activeAgents') + '</div></div></div>';
   html += '</div>';
 
   // Charts row
