@@ -957,7 +957,9 @@ function isAvailable(agentNom, dateISO, recupMap) {
 // Called after every planning build/rebuild.
 function applyForcedReturns() {
   if (!STATE.repos.length) return;
-  STATE.repos.forEach(r => {
+  // Process repos in chronological order to avoid cycle desync when multiple forced returns chain
+  const sorted = [...STATE.repos].sort((a, b) => a.fin.localeCompare(b.fin));
+  sorted.forEach(r => {
     const forcedDate = addDays(r.fin, 2);
     const agentObj = STATE.agents.find(a => a.nom === r.agent && a.actif);
     if (!agentObj) return;
@@ -969,12 +971,55 @@ function applyForcedReturns() {
     const alreadyAssigned = entry.agents.some(a => a.nom === agentObj.nom);
     if (alreadyAssigned) {
       entry.forcedReturn = true;
-      return;
+    } else {
+      // Replace the scheduled agent with the returning agent
+      entry.agents = [{ nom: agentObj.nom, matricule: agentObj.matricule, officiel: true, remplacePar: null, motifEchange: 'Retour congé (J+2)' }];
+      entry.forcedReturn = true;
     }
-    // Replace the scheduled agent with the returning agent
-    entry.agents = [{ nom: agentObj.nom, matricule: agentObj.matricule, officiel: true, remplacePar: null, motifEchange: 'Retour congé (J+2)' }];
-    entry.forcedReturn = true;
+    // Recalculate the cycle from forcedDate+1 so rotation stays in sync
+    const nextDay = addDays(forcedDate, 1);
+    const mode = STATE.settings.mode;
+    const cycleAgents = (mode === 'CONTINU')
+      ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents)
+      : getActiveSorted();
+    if (cycleAgents.length) {
+      const forcedIdx = cycleAgents.findIndex(a => a.nom === agentObj.nom);
+      const nextIdx = forcedIdx >= 0 ? (forcedIdx + 1) % cycleAgents.length : 0;
+      const before = STATE.planning.filter(e => e.dateISO < nextDay);
+      const future = generatePlanning(nextDay, 365, {
+        mode,
+        cycleIndex: nextIdx,
+        cycleIndexSemaine: nextIdx,
+        cycleIndexWeekend: nextIdx
+      }, cycleAgents);
+      STATE.planning = [...before, ...future];
+    }
   });
+}
+
+// Auto-alimente STATE.prevTours avec tous les jours passés du planning
+// qui ne sont pas encore enregistrés dans prevTours.
+function syncPastPlanningToPrevTours() {
+  const today = todayISO();
+  STATE.planning.forEach(entry => {
+    if (entry.dateISO >= today) return; // seulement les jours passés (hier et avant)
+    // Vérifier si cette date est déjà dans prevTours
+    const existing = STATE.prevTours.find(r => r.dateISO === entry.dateISO);
+    if (existing) return; // déjà présent, ne pas écraser
+    // Ajouter les agents officiels de cette entrée dans prevTours
+    const officialAgents = entry.agents.filter(a => a.officiel).map(a => ({
+      nom: a.nom,
+      matricule: a.matricule || 0
+    }));
+    if (!officialAgents.length) return;
+    STATE.prevTours.push({
+      dateISO: entry.dateISO,
+      agents: officialAgents,
+      obs: entry.obs || ''
+    });
+  });
+  // Trier prevTours par date
+  STATE.prevTours.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
 }
 
 // R01/R05: Get the duty agent starting from cycleIdx, skipping unavailables
@@ -1336,6 +1381,7 @@ function rebuildFrom(fromISO) {
 
   STATE.planning = [...before, ...future];
   applyForcedReturns();
+  syncPastPlanningToPrevTours();
   STATE.settings.nextGenDate = fromISO;
   saveState();
 }
@@ -1992,6 +2038,7 @@ function validateAndGenerate() {
   const fullPlan = buildFullPlanning(prevToursData, STATE.agents, STATE.settings.mode);
   STATE.planning = fullPlan;
   applyForcedReturns();
+  syncPastPlanningToPrevTours();
 
   // Update cycle indices in settings
   const agents = getActiveSorted();
@@ -3360,6 +3407,9 @@ function init() {
   if (!loaded) {
     // First run: init with defaults
     STATE.agents = JSON.parse(JSON.stringify(AGENTS_INIT));
+    saveState();
+  } else {
+    syncPastPlanningToPrevTours();
     saveState();
   }
   applyTheme();
