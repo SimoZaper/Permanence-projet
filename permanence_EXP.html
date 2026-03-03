@@ -1425,14 +1425,14 @@ function getNextInRotation(n) {
 function calcAgentStats() {
   const stats = {};
   STATE.agents.forEach(a => {
-    stats[a.nom] = { nom: a.nom, matricule: a.matricule, total: 0, semaine: 0, weekend: 0, doubles: 0, replacements: 0, lastPerm: null, nextPerm: null };
+    stats[a.nom] = { nom: a.nom, matricule: a.matricule, total: 0, semaine: 0, weekend: 0, doubles: 0, replacements: 0, lastPerm: null, nextPerm: null, lastSemaine: null, lastWeekend: null, nextSemaine: null, nextWeekend: null };
   });
   const today = todayISO();
   STATE.planning.forEach(entry => {
     entry.agents.forEach(a => {
       if (!a.officiel && !a.remplacePar) return; // skip unofficial non-replacements tracking
       const key = a.nom;
-      if (!stats[key]) stats[key] = { nom: a.nom, matricule: 0, total:0, semaine:0, weekend:0, doubles:0, replacements:0, lastPerm:null, nextPerm:null };
+      if (!stats[key]) stats[key] = { nom: a.nom, matricule: 0, total:0, semaine:0, weekend:0, doubles:0, replacements:0, lastPerm:null, nextPerm:null, lastSemaine:null, lastWeekend:null, nextSemaine:null, nextWeekend:null };
       if (a.officiel) {
         stats[key].total++;
         if (entry.isWeekend) stats[key].weekend++;
@@ -1440,8 +1440,18 @@ function calcAgentStats() {
         if (entry.agents.filter(x => x.officiel).length > 1) stats[key].doubles++;
         if (entry.dateISO <= today) {
           if (!stats[key].lastPerm || entry.dateISO > stats[key].lastPerm) stats[key].lastPerm = entry.dateISO;
+          if (!entry.isWeekend) {
+            if (!stats[key].lastSemaine || entry.dateISO > stats[key].lastSemaine) stats[key].lastSemaine = entry.dateISO;
+          } else {
+            if (!stats[key].lastWeekend || entry.dateISO > stats[key].lastWeekend) stats[key].lastWeekend = entry.dateISO;
+          }
         } else {
           if (!stats[key].nextPerm || entry.dateISO < stats[key].nextPerm) stats[key].nextPerm = entry.dateISO;
+          if (!entry.isWeekend) {
+            if (!stats[key].nextSemaine || entry.dateISO < stats[key].nextSemaine) stats[key].nextSemaine = entry.dateISO;
+          } else {
+            if (!stats[key].nextWeekend || entry.dateISO < stats[key].nextWeekend) stats[key].nextWeekend = entry.dateISO;
+          }
         }
       } else if (a.remplacePar) {
         // Count as replacement for remplacePar
@@ -2224,6 +2234,55 @@ function renderCalWeek() {
     html += '</div></div>';
   }
   html += '</div>';
+
+  // Rotation orders block
+  html += '<div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">';
+
+  const agents = getActiveSorted();
+  const today2 = todayISO();
+  const planFuturSem = STATE.planning.filter(e => !e.isPrev && !e.isWeekend && e.dateISO >= today2).sort((a,b)=>a.dateISO.localeCompare(b.dateISO));
+  const planFuturWE  = STATE.planning.filter(e => !e.isPrev &&  e.isWeekend && e.dateISO >= today2).sort((a,b)=>a.dateISO.localeCompare(b.dateISO));
+
+  // Find next agent for semaine
+  const nextSemEntry = planFuturSem[0];
+  const nextSemAgent = nextSemEntry ? (nextSemEntry.agents.find(a=>a.officiel)||{}).nom : null;
+  // Find next agent for weekend
+  const nextWEEntry  = planFuturWE[0];
+  const nextWEAgent  = nextWEEntry  ? (nextWEEntry.agents.find(a=>a.officiel)||{}).nom  : null;
+
+  // Build rotation order starting from next agent
+  function buildRotationFrom(startName) {
+    if (!agents.length) return agents;
+    const idx = agents.findIndex(a => a.nom === startName);
+    if (idx < 0) return agents;
+    return [...agents.slice(idx), ...agents.slice(0, idx)];
+  }
+
+  const orderSem = buildRotationFrom(nextSemAgent);
+  const orderWE  = buildRotationFrom(nextWEAgent);
+
+  // Render Semaine rotation
+  html += '<div class="card" style="flex:1;min-width:220px"><div class="card-body">';
+  html += '<h4 style="margin-bottom:.5rem;color:var(--primary)">📋 Ordre rotation — Semaine</h4>';
+  html += '<div class="rotation-list">';
+  orderSem.forEach((a, i) => {
+    const isCur = a.nom === nextSemAgent;
+    html += '<span class="rotation-chip' + (isCur ? ' current' : '') + '">' + (i+1) + '. ' + a.nom + '</span>';
+  });
+  html += '</div></div></div>';
+
+  // Render Week-end rotation
+  html += '<div class="card" style="flex:1;min-width:220px"><div class="card-body">';
+  html += '<h4 style="margin-bottom:.5rem;color:#3498db">📋 Ordre rotation — Week-end</h4>';
+  html += '<div class="rotation-list">';
+  orderWE.forEach((a, i) => {
+    const isCur = a.nom === nextWEAgent;
+    html += '<span class="rotation-chip' + (isCur ? ' current' : '') + '">' + (i+1) + '. ' + a.nom + '</span>';
+  });
+  html += '</div></div></div>';
+
+  html += '</div>'; // end flex row
+
   return html;
 }
 
@@ -2254,8 +2313,12 @@ function renderTab4() {
     html += '<div class="agent-stat"><div class="n">' + (s.semaine||0) + '</div><div class="l">Sem.</div></div>';
     html += '<div class="agent-stat"><div class="n">' + (s.weekend||0) + '</div><div class="l">WE</div></div>';
     html += '</div>';
-    if (s.lastPerm) html += '<div style="font-size:.73rem;color:var(--text-secondary)">Dern.: ' + formatDate(s.lastPerm) + '</div>';
-    if (s.nextPerm) html += '<div style="font-size:.73rem;color:var(--primary)">Proch.: ' + formatDate(s.nextPerm) + '</div>';
+    html += '<div style="font-size:.72rem;color:var(--text-secondary);margin-top:.3rem;text-align:left;line-height:1.6">';
+    html += '<span style="color:var(--text-secondary)">Dern-S.: </span><strong>' + (s.lastSemaine ? formatDate(s.lastSemaine) : '—') + '</strong><br>';
+    html += '<span style="color:#3498db">Dern-W.: </span><strong>' + (s.lastWeekend ? formatDate(s.lastWeekend) : '—') + '</strong><br>';
+    html += '<span style="color:var(--success)">Proch-S: </span><strong>' + (s.nextSemaine ? formatDate(s.nextSemaine) : '—') + '</strong><br>';
+    html += '<span style="color:#e67e22">Proch-W: </span><strong>' + (s.nextWeekend ? formatDate(s.nextWeekend) : '—') + '</strong>';
+    html += '</div>';
     if (isAdmin()) {
       html += '<div class="agent-card-actions">';
       html += '<button class="btn btn-sm btn-outline" onclick="openEditAgent(' + a.id + ')">✏️</button>';
