@@ -409,7 +409,7 @@ textarea.form-control{resize:vertical;min-height:70px}
         <button class="lang-btn active" id="btnFR" onclick="setLang('fr')">FR</button>
         <button class="lang-btn" id="btnAR" onclick="setLang('ar')">ع</button>
       </div>
-      <div class="mode-badge" id="modeBadge">MODE CONTINU</div>
+      <div class="mode-badge" id="modeBadge">MODE SEMTA</div>
       <div class="user-info" id="userInfo">
         <div class="user-avatar" id="userAvatar">A</div>
         <span id="userLabel">Admin</span>
@@ -567,7 +567,7 @@ const I18N = {
     alerts:"Alertes", exportPDF:"Export PDF", exportExcel:"Export Excel",
     saveJSON:"Sauvegarder JSON", importJSON:"Importer JSON",
     noPlanning:"Aucun planning généré. Commencez par saisir les tours précédents.",
-    modeContinu:"Mode Continu", modeWeek:"Mode Semaine",
+    modeContinu:"Mode SEMTA", modeWeek:"Mode TWEK",
     conge:'Congé', maladie:'Maladie', mission:'Mission',
     modification:'Modification', echange:'Échange', repos:'Repos',
     agent:'Agent', matricule:'Matricule', date:'Date', jour:'Jour',
@@ -624,7 +624,7 @@ const I18N = {
     alerts:'تنبيهات', exportPDF:'تصدير PDF', exportExcel:'تصدير Excel',
     saveJSON:'حفظ JSON', importJSON:'استيراد JSON',
     noPlanning:'لم يتم إنشاء جدول. ابدأ بإدخال الجولات السابقة.',
-    modeContinu:'الوضع المتواصل', modeWeek:'وضع الأسبوع',
+    modeContinu:'Mode SEMTA', modeWeek:'Mode TWEK',
     conge:'إجازة', maladie:'مرض', mission:'مهمة',
     modification:'تعديل', echange:'تبادل', repos:'راحة',
     agent:'العون', matricule:'رقم التسجيل', date:'التاريخ', jour:'اليوم',
@@ -685,7 +685,7 @@ let STATE = {
   connexions: [],
   prevTours: [],
   settings: {
-    mode: 'CONTINU',
+    mode: 'SEMTA',
     modeChangedDate: null,
     alertThresholdDays: 30,
     historyDays: 16,
@@ -745,7 +745,7 @@ function loadState() {
     STATE.connexions = data.connexions || [];
     STATE.prevTours = migratePrevTours(data.prevTours || []);
     STATE.settings = Object.assign({
-      mode:'CONTINU', modeChangedDate:null, alertThresholdDays: DEFAULT_ALERT_THRESHOLD, historyDays:16,
+      mode:'SEMTA', modeChangedDate:null, alertThresholdDays: DEFAULT_ALERT_THRESHOLD, historyDays:16,
       cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextGenDate:null
     }, data.settings || {});
     if (data.users && data.users.length) {
@@ -979,7 +979,7 @@ function wasTurnMissedDuringLeave(agentNom, debut, fin) {
         // en vérifiant si l'agent précédent dans le planning était avant lui dans le cycle
         // Approche pragmatique : si l'agent est absent ET qu'un autre a fait la perm ce jour,
         // on vérifie si c'était effectivement son tour en regardant le cycle
-        const cycleAgents = (STATE.settings.mode === 'CONTINU')
+        const cycleAgents = (STATE.settings.mode === 'SEMTA')
           ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents)
           : getActiveSorted();
         if (!cycleAgents.length) { d = addDays(d, 1); continue; }
@@ -1043,7 +1043,7 @@ function applyForcedReturns() {
     // Recalculate the cycle from forcedDate+1 so rotation stays in sync
     const nextDay = addDays(forcedDate, 1);
     const mode = STATE.settings.mode;
-    const cycleAgents = (mode === 'CONTINU')
+    const cycleAgents = (mode === 'SEMTA')
       ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents)
       : getActiveSorted();
     if (cycleAgents.length) {
@@ -1110,28 +1110,36 @@ function isWeekendDay(dow) { return dow === 0 || dow === 6; }
 // Core planning generation
 // Returns array of planning entries for daysCount days starting from startISO
 // initialCycleState = { mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend }
-function generatePlanning(startISO, daysCount, cycleState, agents) {
+function generatePlanning(startISO, daysCount, cycleState, agents, agentsWE) {
   const plan = [];
   const recupMap = {};
   let { mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend } = cycleState;
+  const agentsSem = agents;
+  const agentsWeekend = (mode === 'TWEK' && agentsWE) ? agentsWE : agents;
   const n = agents.length;
+  const nSem = agentsSem.length;
+  const nWE = agentsWeekend.length;
   if (n === 0) return [];
 
   for (let i = 0; i < daysCount; i++) {
     const dateISO = addDays(startISO, i);
     const dow = dowOf(dateISO);
 
-    // Determine which cycle index to use
-    let idx;
-    if (mode === 'WEEK') {
-      idx = isSemaineDay(dow) ? cycleIndexSemaine : cycleIndexWeekend;
+    // Determine which cycle index and agent pool to use
+    let idx, curAgents, curN;
+    if (mode === 'TWEK') {
+      if (isSemaineDay(dow)) {
+        idx = cycleIndexSemaine; curAgents = agentsSem; curN = nSem;
+      } else {
+        idx = cycleIndexWeekend; curAgents = agentsWeekend; curN = nWE;
+      }
     } else {
-      idx = cycleIndex;
+      idx = cycleIndex; curAgents = agents; curN = n;
     }
 
     // Find available agent (R01/R05)
-    const dutyIdx = getDutyAgentIdx(idx, dateISO, agents, recupMap);
-    const agent = agents[dutyIdx];
+    const dutyIdx = getDutyAgentIdx(idx, dateISO, curAgents, recupMap);
+    const agent = curAgents[dutyIdx];
 
     // Create entry
     const entry = {
@@ -1154,8 +1162,8 @@ function generatePlanning(startISO, daysCount, cycleState, agents) {
     recupMap[recupDate].add(agent.nom);
 
     // Advance cycle: next agent after dutyIdx (R01)
-    const nextIdx = (dutyIdx + 1) % n;
-    if (mode === 'WEEK') {
+    const nextIdx = (dutyIdx + 1) % curN;
+    if (mode === 'TWEK') {
       if (isSemaineDay(dow)) cycleIndexSemaine = nextIdx;
       else cycleIndexWeekend = nextIdx;
     } else {
@@ -1212,7 +1220,7 @@ function calcCycleFromPrev(prevTours, agents, mode) {
       const agentIdx = agents.findIndex(a => a.nom === agentNom);
       const dutyIdx = agentIdx >= 0 ? agentIdx : 0;
       const nextIdx = (dutyIdx + 1) % n;
-      if (mode === 'WEEK') {
+      if (mode === 'TWEK') {
         if (isSemaineDay(dow)) cycleIndexSemaine = nextIdx;
         else cycleIndexWeekend = nextIdx;
       } else {
@@ -1225,7 +1233,7 @@ function calcCycleFromPrev(prevTours, agents, mode) {
       const agentIdx = agents.findIndex(a => a.nom === agentNom);
       const dutyIdx = agentIdx >= 0 ? agentIdx : 0;
       const nextIdx = (dutyIdx + 1) % n;
-      if (mode === 'WEEK') {
+      if (mode === 'TWEK') {
         if (isSemaineDay(dow)) cycleIndexSemaine = nextIdx;
         else cycleIndexWeekend = nextIdx;
       } else {
@@ -1293,6 +1301,45 @@ function buildCycleFromPrevTours(prevTours, allAgents) {
   return cycle;
 }
 
+function buildCycleFromFilteredTours(filteredPrevTours, allAgents) {
+  const activeAgents = (allAgents || STATE.agents).filter(a => a.actif);
+  if (!filteredPrevTours || filteredPrevTours.length === 0) {
+    return activeAgents.sort((a, b) => a.matricule - b.matricule);
+  }
+  const lastAppearance = {};
+  filteredPrevTours.forEach(tour => {
+    (tour.agents || []).forEach(agent => { lastAppearance[agent.nom] = tour.dateISO; });
+  });
+  const cycle = [];
+  const processed = new Set();
+  const sortedTours = [...filteredPrevTours].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  sortedTours.forEach(tour => {
+    const tourAgents = (tour.agents || []).slice().sort((a, b) => b.matricule - a.matricule);
+    tourAgents.forEach(agent => {
+      const isLastAppearance = lastAppearance[agent.nom] === tour.dateISO;
+      const notYetAdded = !processed.has(agent.nom);
+      if (isLastAppearance && notYetAdded) {
+        const agentData = activeAgents.find(a => a.nom === agent.nom);
+        if (agentData) { cycle.push({ nom: agent.nom, matricule: agentData.matricule }); processed.add(agent.nom); }
+      }
+    });
+  });
+  activeAgents.sort((a, b) => a.matricule - b.matricule).forEach(a => {
+    if (!processed.has(a.nom)) cycle.push({ nom: a.nom, matricule: a.matricule });
+  });
+  return cycle;
+}
+
+function buildCycleFromPrevToursSem(prevTours, allAgents) {
+  const filtered = prevTours.filter(t => isSemaineDay(dowOf(t.dateISO)));
+  return buildCycleFromFilteredTours(filtered, allAgents);
+}
+
+function buildCycleFromPrevToursWE(prevTours, allAgents) {
+  const filtered = prevTours.filter(t => isWeekendDay(dowOf(t.dateISO)));
+  return buildCycleFromFilteredTours(filtered, allAgents);
+}
+
 /**
  * Returns the next agent in the rotation cycle after lastAgentName.
  * Wraps around to the start of the cycle.
@@ -1358,14 +1405,29 @@ function buildFullPlanning(prevToursRows, agents, mode) {
   });
   prevEntries.sort((a,b) => a.dateISO.localeCompare(b.dateISO));
 
-  let cycleAgents, cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO;
+  let cycleAgents, cycleAgentsWE, cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO;
 
-  if (mode === 'WEEK') {
-    // Keep existing index-based logic for WEEK mode
-    cycleAgents = sorted;
-    ({ cycleIndex, cycleIndexSemaine, cycleIndexWeekend, nextStartISO } = calcCycleFromPrev(prevToursRows, sorted, mode));
+  if (mode === 'TWEK') {
+    const cycleSem = buildCycleFromPrevToursSem(prevToursRows, STATE.agents);
+    const cycleWE  = buildCycleFromPrevToursWE(prevToursRows, STATE.agents);
+    cycleAgents    = cycleSem.length ? cycleSem : sorted;
+    cycleAgentsWE  = cycleWE.length  ? cycleWE  : sorted;
+    const sortedPrevSem = prevToursRows.filter(r => r.dateISO && isSemaineDay(dowOf(r.dateISO))).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+    const sortedPrevWE  = prevToursRows.filter(r => r.dateISO && isWeekendDay(dowOf(r.dateISO))).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+    const lastSemNom = sortedPrevSem.length > 0 ? ((sortedPrevSem[sortedPrevSem.length-1].agents || [])[0] || {}).nom : null;
+    const lastWENom  = sortedPrevWE.length  > 0 ? ((sortedPrevWE[sortedPrevWE.length-1].agents  || [])[0] || {}).nom : null;
+    const nextSemAgent = getNextAgentInCycle(cycleAgents, lastSemNom);
+    const nextWEAgent  = getNextAgentInCycle(cycleAgentsWE, lastWENom);
+    cycleIndexSemaine = nextSemAgent ? cycleAgents.findIndex(a => a.nom === nextSemAgent.nom) : 0;
+    cycleIndexWeekend = nextWEAgent  ? cycleAgentsWE.findIndex(a => a.nom === nextWEAgent.nom) : 0;
+    if (cycleIndexSemaine < 0) cycleIndexSemaine = 0;
+    if (cycleIndexWeekend < 0) cycleIndexWeekend = 0;
+    cycleIndex = 0;
+    const sortedPrevAll = [...prevToursRows].filter(r => r.dateISO).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+    nextStartISO = sortedPrevAll.length > 0 ? addDays(sortedPrevAll[sortedPrevAll.length - 1].dateISO, 1) : todayISO();
   } else {
-    // New cycle-based approach for CONTINU mode
+    cycleAgentsWE = null;
+    // New cycle-based approach for SEMTA mode
     cycleAgents = buildCycleFromPrevTours(prevToursRows, STATE.agents);
     if (!cycleAgents.length) cycleAgents = sorted;
     const sortedPrev = [...prevToursRows].filter(r => r.dateISO).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
@@ -1379,7 +1441,7 @@ function buildFullPlanning(prevToursRows, agents, mode) {
   // Generate 1 year from nextStartISO
   const futureEntries = generatePlanning(nextStartISO, 365, {
     mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
-  }, cycleAgents);
+  }, cycleAgents, cycleAgentsWE);
 
   return [...prevEntries, ...futureEntries];
 }
@@ -1393,37 +1455,41 @@ function rebuildFrom(fromISO) {
   const before = STATE.planning.filter(e => e.dateISO < fromISO);
 
   const mode = STATE.settings.mode;
-  let cycleAgents, cycleIndex, cycleIndexSemaine, cycleIndexWeekend;
+  let cycleAgents, cycleAgentsWE, cycleIndex, cycleIndexSemaine, cycleIndexWeekend;
 
-  if (mode === 'WEEK') {
-    // Keep existing index-based logic for WEEK mode
-    const prevForCalc = [];
+  if (mode === 'TWEK') {
+    // Collect prev tours before fromISO for cycle reconstruction
+    const prevForCalcTwek = [];
     STATE.prevTours.forEach(r => {
       if (r.dateISO >= fromISO) return;
-      if (Array.isArray(r.agents)) {
-        r.agents.forEach(a => prevForCalc.push({ dateISO: r.dateISO, agentNom: a.nom, matricule: a.matricule || 0 }));
-      } else if (r.agentNom) {
-        prevForCalc.push({ dateISO: r.dateISO, agentNom: r.agentNom, matricule: r.matricule || 0 });
-      }
+      prevForCalcTwek.push(r);
     });
+    const seenDates = new Set(prevForCalcTwek.map(r => r.dateISO));
     before.forEach(e => {
-      if (e.isPrev || e.dateISO < fromISO) {
-        e.agents.filter(a => a.officiel).forEach(a => {
-          prevForCalc.push({ dateISO: e.dateISO, agentNom: a.nom, matricule: a.matricule });
-        });
+      if ((e.isPrev || e.dateISO < fromISO) && !seenDates.has(e.dateISO)) {
+        const officialAgents = e.agents.filter(a => a.officiel).map(a => ({ nom: a.nom, matricule: a.matricule }));
+        if (officialAgents.length) prevForCalcTwek.push({ dateISO: e.dateISO, agents: officialAgents, obs: e.obs || '' });
+        seenDates.add(e.dateISO);
       }
     });
-    const seen = new Set();
-    const deduped = prevForCalc.filter(r => {
-      const key = r.dateISO + r.agentNom;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    ({ cycleIndex, cycleIndexSemaine, cycleIndexWeekend } = calcCycleFromPrev(deduped, agents, mode));
-    cycleAgents = agents;
+    const cycleSem = buildCycleFromPrevToursSem(prevForCalcTwek, STATE.agents);
+    const cycleWE  = buildCycleFromPrevToursWE(prevForCalcTwek, STATE.agents);
+    cycleAgents   = cycleSem.length ? cycleSem : agents;
+    cycleAgentsWE = cycleWE.length  ? cycleWE  : agents;
+    const lastBeforeSem = before.filter(e => !e.isWeekend && e.agents.some(a => a.officiel)).sort((a, b) => b.dateISO.localeCompare(a.dateISO))[0];
+    const lastBeforeWE  = before.filter(e =>  e.isWeekend && e.agents.some(a => a.officiel)).sort((a, b) => b.dateISO.localeCompare(a.dateISO))[0];
+    const lastSemNom = lastBeforeSem ? (lastBeforeSem.agents.find(a => a.officiel) || {}).nom : null;
+    const lastWENom  = lastBeforeWE  ? (lastBeforeWE.agents.find(a => a.officiel)  || {}).nom : null;
+    const nextSemAgent = getNextAgentInCycle(cycleAgents, lastSemNom);
+    const nextWEAgent  = getNextAgentInCycle(cycleAgentsWE, lastWENom);
+    cycleIndexSemaine = nextSemAgent ? cycleAgents.findIndex(a => a.nom === nextSemAgent.nom) : 0;
+    cycleIndexWeekend = nextWEAgent  ? cycleAgentsWE.findIndex(a => a.nom === nextWEAgent.nom) : 0;
+    if (cycleIndexSemaine < 0) cycleIndexSemaine = 0;
+    if (cycleIndexWeekend < 0) cycleIndexWeekend = 0;
+    cycleIndex = 0;
   } else {
-    // New cycle-based approach for CONTINU mode
+    cycleAgentsWE = null;
+    // New cycle-based approach for SEMTA mode
     cycleAgents = buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
     if (!cycleAgents.length) cycleAgents = agents;
     // Find the last official agent before fromISO to determine cycle position
@@ -1441,7 +1507,7 @@ function rebuildFrom(fromISO) {
 
   const future = generatePlanning(fromISO, 365, {
     mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
-  }, cycleAgents);
+  }, cycleAgents, cycleAgentsWE);
 
   STATE.planning = [...before, ...future];
   applyForcedReturns();
@@ -1459,11 +1525,14 @@ function getPlanEntry(dateISO) {
 function getNextInRotation(n) {
   const mode = STATE.settings.mode;
   let agents;
-  if (mode === 'WEEK') {
-    agents = getActiveSorted();
-  } else {
+  if (mode === 'SEMTA') {
     agents = buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
     if (!agents.length) agents = getActiveSorted();
+  } else if (mode === 'TWEK') {
+    agents = buildCycleFromPrevToursSem(STATE.prevTours, STATE.agents);
+    if (!agents.length) agents = getActiveSorted();
+  } else {
+    agents = getActiveSorted();
   }
   if (!agents.length) return [];
 
@@ -1566,7 +1635,7 @@ function renderTab1() {
   const todayEntry = getPlanEntry(today);
   const agents = getActiveSorted();
   const modeBadge = document.getElementById('modeBadge');
-  if (modeBadge) modeBadge.textContent = STATE.settings.mode === 'WEEK' ? t('modeWeek') : t('modeContinu');
+  if (modeBadge) modeBadge.textContent = STATE.settings.mode === 'TWEK' ? t('modeWeek') : t('modeContinu');
 
   // Today's permanencier
   let todayAgent = '—';
@@ -1583,7 +1652,7 @@ function renderTab1() {
   bannerHTML += '<div class="banner-divider"></div>';
   bannerHTML += '<div class="banner-item"><div class="val" style="font-size:1rem">' + (todayEntry ? todayEntry.agents.filter(a=>a.officiel).map(a=>a.nom).join(', ') : '—') + '</div><div class="lbl">' + t('todayPerm') + '</div></div>';
   bannerHTML += '<div class="banner-divider"></div>';
-  bannerHTML += '<div class="banner-item"><div class="val">' + (STATE.settings.mode === 'WEEK' ? '📆' : '🔄') + '</div><div class="lbl">' + (STATE.settings.mode === 'WEEK' ? t('modeWeek') : t('modeContinu')) + '</div></div>';
+  bannerHTML += '<div class="banner-item"><div class="val">' + (STATE.settings.mode === 'TWEK' ? '📆' : '🔄') + '</div><div class="lbl">' + (STATE.settings.mode === 'TWEK' ? t('modeWeek') : t('modeContinu')) + '</div></div>';
   bannerHTML += '<div class="banner-divider"></div>';
   bannerHTML += '<div class="banner-item"><div class="val">' + getAvailableToday().length + '</div><div class="lbl">' + t('activeAgents') + '</div></div>';
   bannerHTML += '</div>';
@@ -1903,10 +1972,18 @@ function renderTab2() {
       html += '<h3>🎯 ' + t('nextPerm') + ': <strong>' + (ag ? ag.nom : '—') + '</strong> (' + (ag ? ag.matricule : '') + ') — ' + t('startingFrom') + ' ' + firstFuture.date + '</h3>';
 
       // Build base agents list
-      const _rCycle = STATE.settings.mode !== 'WEEK' ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents) : null;
-      const baseAgents = STATE.settings.mode === 'WEEK'
-        ? getActiveSorted()
-        : (_rCycle && _rCycle.length ? _rCycle : getActiveSorted());
+      let baseAgents, baseAgentsWE;
+      if (STATE.settings.mode === 'SEMTA') {
+        const _rCycle = buildCycleFromPrevTours(STATE.prevTours, STATE.agents);
+        baseAgents = baseAgentsWE = (_rCycle && _rCycle.length ? _rCycle : getActiveSorted());
+      } else if (STATE.settings.mode === 'TWEK') {
+        const _cycleSem = buildCycleFromPrevToursSem(STATE.prevTours, STATE.agents);
+        const _cycleWE  = buildCycleFromPrevToursWE(STATE.prevTours, STATE.agents);
+        baseAgents   = _cycleSem.length ? _cycleSem : getActiveSorted();
+        baseAgentsWE = _cycleWE.length  ? _cycleWE  : getActiveSorted();
+      } else {
+        baseAgents = baseAgentsWE = getActiveSorted();
+      }
 
       // Find next semaine agent
       const today2 = todayISO();
@@ -1916,15 +1993,16 @@ function renderTab2() {
       const nextWEAgent2  = planFuturWE2[0]  ? (planFuturWE2[0].agents.find(a => a.officiel)  || {}).nom : null;
 
       // Build rotation order starting from next agent
-      function buildRotFrom2(startName) {
-        if (!baseAgents.length) return baseAgents;
-        const idx = baseAgents.findIndex(a => a.nom === startName);
-        if (idx < 0) return baseAgents;
-        return [...baseAgents.slice(idx), ...baseAgents.slice(0, idx)];
+      function buildRotFrom2(startName, pool) {
+        pool = pool || baseAgents;
+        if (!pool.length) return pool;
+        const idx = pool.findIndex(a => a.nom === startName);
+        if (idx < 0) return pool;
+        return [...pool.slice(idx), ...pool.slice(0, idx)];
       }
 
       const orderSem2 = buildRotFrom2(nextSemAgent2);
-      const orderWE2  = buildRotFrom2(nextWEAgent2);
+      const orderWE2  = buildRotFrom2(nextWEAgent2, baseAgentsWE);
 
       // Render semaine rotation
       html += '<div style="margin-top:.8rem;display:flex;gap:1rem;flex-wrap:wrap">';
@@ -2343,10 +2421,18 @@ function renderCalWeek() {
   // Rotation orders block
   html += '<div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">';
 
-  const _cycle = STATE.settings.mode !== 'WEEK' ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents) : null;
-  const agents = STATE.settings.mode === 'WEEK'
-    ? getActiveSorted()
-    : (_cycle.length ? _cycle : getActiveSorted());
+  const _cycle = STATE.settings.mode !== 'TWEK' ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents) : null;
+  let agents, agentsWE;
+  if (STATE.settings.mode === 'SEMTA') {
+    agents = agentsWE = (_cycle && _cycle.length ? _cycle : getActiveSorted());
+  } else if (STATE.settings.mode === 'TWEK') {
+    const _cycleSem = buildCycleFromPrevToursSem(STATE.prevTours, STATE.agents);
+    const _cycleWE  = buildCycleFromPrevToursWE(STATE.prevTours, STATE.agents);
+    agents   = _cycleSem.length ? _cycleSem : getActiveSorted();
+    agentsWE = _cycleWE.length  ? _cycleWE  : getActiveSorted();
+  } else {
+    agents = agentsWE = getActiveSorted();
+  }
   const today2 = todayISO();
   const planFuturSem = STATE.planning.filter(e => !e.isPrev && !e.isWeekend && e.dateISO >= today2).sort((a,b)=>a.dateISO.localeCompare(b.dateISO));
   const planFuturWE  = STATE.planning.filter(e => !e.isPrev &&  e.isWeekend && e.dateISO >= today2).sort((a,b)=>a.dateISO.localeCompare(b.dateISO));
@@ -2359,15 +2445,16 @@ function renderCalWeek() {
   const nextWEAgent  = nextWEEntry  ? (nextWEEntry.agents.find(a=>a.officiel)||{}).nom  : null;
 
   // Build rotation order starting from next agent
-  function buildRotationFrom(startName) {
-    if (!agents.length) return agents;
-    const idx = agents.findIndex(a => a.nom === startName);
-    if (idx < 0) return agents;
-    return [...agents.slice(idx), ...agents.slice(0, idx)];
+  function buildRotationFrom(startName, pool) {
+    pool = pool || agents;
+    if (!pool.length) return pool;
+    const idx = pool.findIndex(a => a.nom === startName);
+    if (idx < 0) return pool;
+    return [...pool.slice(idx), ...pool.slice(0, idx)];
   }
 
   const orderSem = buildRotationFrom(nextSemAgent);
-  const orderWE  = buildRotationFrom(nextWEAgent);
+  const orderWE  = buildRotationFrom(nextWEAgent, agentsWE);
 
   // Render Semaine rotation
   html += '<div class="card" style="flex:1;min-width:220px"><div class="card-body">';
@@ -3049,8 +3136,8 @@ function renderTab9() {
   // Tour mode
   html += '<div class="settings-section"><h3>Mode de rotation</h3>';
   html += '<div class="flex flex-gap items-center mb-2">';
-  html += '<button class="btn ' + (STATE.settings.mode==='CONTINU' ? 'btn-primary' : 'btn-outline') + '" onclick="setMode(\'CONTINU\')">' + t('modeContinu') + '</button>';
-  html += '<button class="btn ' + (STATE.settings.mode==='WEEK' ? 'btn-primary' : 'btn-outline') + '" onclick="setMode(\'WEEK\')">' + t('modeWeek') + '</button>';
+  html += '<button class="btn ' + (STATE.settings.mode==='SEMTA' ? 'btn-primary' : 'btn-outline') + '" onclick="setMode(\'SEMTA\')">🔄 ' + t('modeContinu') + '</button>';
+  html += '<button class="btn ' + (STATE.settings.mode==='TWEK' ? 'btn-primary' : 'btn-outline') + '" onclick="setMode(\'TWEK\')">⚡ ' + t('modeWeek') + '</button>';
   html += '</div>';
   html += '<p class="text-muted" style="font-size:.83rem">Mode actuel: <strong>' + STATE.settings.mode + '</strong>' + (STATE.settings.modeChangedDate ? ' (changé le ' + formatDate(STATE.settings.modeChangedDate) + ')' : '') + '</p>';
   html += '</div>';
