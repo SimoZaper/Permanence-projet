@@ -952,6 +952,61 @@ function isAvailable(agentNom, dateISO, recupMap) {
   return true;
 }
 
+// Vérifie si l'agent a eu au moins un jour de son tour manqué pendant son absence.
+// On considère que son tour était "manqué" si, pendant la période [debut, fin],
+// il y a un jour dans le planning où ce n'est PAS lui l'agent officiel assigné,
+// mais où c'était son tour dans le cycle (c'est-à-dire qu'il aurait dû être assigné
+// sans son absence, i.e. getDutyAgentIdx aurait retourné son index sans l'absence).
+// Approche simplifiée : vérifier si pendant l'absence, un des jours planifiés
+// a un agent officiel différent de lui (ce qui signifie qu'il a été sauté).
+function wasTurnMissedDuringLeave(agentNom, debut, fin) {
+  let d = debut;
+  while (d <= fin) {
+    const entry = STATE.planning.find(e => e.dateISO === d && !e.isPrev);
+    if (entry) {
+      const officialAgent = entry.agents.find(a => a.officiel);
+      // Si un autre agent a fait la permanence à sa place ce jour-là,
+      // cela signifie qu'il a été sauté (son tour a été perturbé)
+      if (officialAgent && officialAgent.nom !== agentNom) {
+        // Vérifier que ce jour était bien "son tour" dans le cycle
+        // en vérifiant si l'agent précédent dans le planning était avant lui dans le cycle
+        // Approche pragmatique : si l'agent est absent ET qu'un autre a fait la perm ce jour,
+        // on vérifie si c'était effectivement son tour en regardant le cycle
+        const cycleAgents = (STATE.settings.mode === 'CONTINU')
+          ? buildCycleFromPrevTours(STATE.prevTours, STATE.agents)
+          : getActiveSorted();
+        if (!cycleAgents.length) { d = addDays(d, 1); continue; }
+        
+        // Trouver l'entrée précédente dans le planning (avant cette date)
+        const prevEntry = STATE.planning
+          .filter(e => !e.isPrev && e.dateISO < d)
+          .sort((a, b) => b.dateISO.localeCompare(a.dateISO))[0];
+        
+        if (prevEntry) {
+          const prevOfficialAgent = prevEntry.agents.find(a => a.officiel);
+          if (prevOfficialAgent) {
+            const prevIdx = cycleAgents.findIndex(a => a.nom === prevOfficialAgent.nom);
+            if (prevIdx >= 0) {
+              const expectedIdx = (prevIdx + 1) % cycleAgents.length;
+              const expectedAgent = cycleAgents[expectedIdx];
+              // Si l'agent attendu est bien notre agent absent → son tour a été sauté
+              if (expectedAgent && expectedAgent.nom === agentNom) {
+                return true; // Tour manqué confirmé
+              }
+            }
+          }
+        } else {
+          // Pas d'entrée précédente → premier jour du planning, on considère que c'est son tour
+          const agentIdx = cycleAgents.findIndex(a => a.nom === agentNom);
+          if (agentIdx === 0) return true;
+        }
+      }
+    }
+    d = addDays(d, 1);
+  }
+  return false;
+}
+
 // R04+: Forced return — On fin+2 (the day after the return-rest day), the agent
 // who was on leave is forcibly assigned to permanence.
 // Called after every planning build/rebuild.
@@ -965,6 +1020,8 @@ function applyForcedReturns() {
     if (!agentObj) return;
     // Skip if agent is still on another leave on the forced date
     if (isOnLeave(r.agent, forcedDate)) return;
+    // ← NOUVELLE RÈGLE : ne forcer que si l'absence a perturbé le tour de l'agent
+    if (!wasTurnMissedDuringLeave(r.agent, r.debut, r.fin)) return;
     const entry = STATE.planning.find(e => e.dateISO === forcedDate && !e.isPrev);
     if (!entry) return;
     // If agent is already assigned, just mark the entry
