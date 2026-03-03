@@ -1864,6 +1864,19 @@ function showDayDetail(dateISO) {
     }
   });
   if (entry.obs) { html += '<div class="divider"></div><p><strong>Observation:</strong> ' + entry.obs + '</p>'; }
+
+  const dayExchanges = STATE.echanges.filter(ex => ex.date === dateISO);
+  if (dayExchanges.length) {
+    html += '<div class="divider"></div>';
+    html += '<p><strong>🔄 Échanges :</strong></p>';
+    dayExchanges.forEach(ex => {
+      html += '<div class="flex items-center flex-gap mb-2">';
+      html += '<div><span class="badge badge-remplace">' + ex.officiel + ' → ' + ex.remplacant + '</span>';
+      if (ex.motif) html += ' <span class="badge badge-info">' + ex.motif + '</span>';
+      html += '</div></div>';
+    });
+  }
+
   html += '</div>';
 
   let footer = '';
@@ -2834,7 +2847,7 @@ function renderTab6() {
     html += '<td>' + (e.saisiPar||'—') + '</td>';
     html += '<td>' + (e.saisiDate||'—') + '</td>';
     if (isAdmin()) {
-      html += '<td><button class="btn btn-sm btn-danger" onclick="deleteEchange(\'' + e.id + '\')">🗑️</button></td>';
+      html += '<td><button class="btn btn-sm btn-danger" onclick="deleteEchange(' + e.id + ')">🗑️</button></td>';
     }
     html += '</tr>';
   });
