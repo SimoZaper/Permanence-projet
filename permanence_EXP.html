@@ -1263,7 +1263,7 @@ function calcCycleFromPrev(prevTours, agents, mode) {
 function buildCycleFromPrevTours(prevTours, allAgents) {
   const activeAgents = (allAgents || STATE.agents).filter(a => a.actif);
   if (!prevTours || prevTours.length === 0) {
-    return activeAgents.sort((a, b) => a.matricule - b.matricule);
+    return [...activeAgents].sort((a, b) => b.matricule - a.matricule);
   }
 
   // STEP 1: Find last appearance date for each agent
@@ -1276,7 +1276,7 @@ function buildCycleFromPrevTours(prevTours, allAgents) {
   console.log('[Cycle] Dernières apparitions:', lastAppearance);
 
   // STEP 2: Build cycle chronologically (oldest → newest)
-  const cycle = [];
+  const cycleWithDate = [];
   const processed = new Set();
   const sortedTours = [...prevTours].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
 
@@ -1290,13 +1290,21 @@ function buildCycleFromPrevTours(prevTours, allAgents) {
         // Only include active agents
         const agentData = activeAgents.find(a => a.nom === agent.nom);
         if (agentData) {
-          cycle.push({ nom: agent.nom, matricule: agentData.matricule });
+          cycleWithDate.push({ nom: agent.nom, matricule: agentData.matricule });
           processed.add(agent.nom);
         }
       }
     });
   });
 
+  // STEP 3: Agents sans aucune date → mis EN TÊTE, triés par matricule décroissant
+  const noDateAgents = activeAgents
+    .filter(a => !processed.has(a.nom))
+    .sort((a, b) => b.matricule - a.matricule);
+
+  const cycle = [...noDateAgents, ...cycleWithDate];
+
+  console.log('[Cycle] Agents sans date (en tête):', noDateAgents.map(a => a.nom + ' (' + a.matricule + ')'));
   console.log('[Cycle] Cycle construit:', cycle.map((a, i) => (i + 1) + '. ' + a.nom + ' (' + a.matricule + ')'));
   return cycle;
 }
@@ -1304,13 +1312,13 @@ function buildCycleFromPrevTours(prevTours, allAgents) {
 function buildCycleFromFilteredTours(filteredPrevTours, allAgents) {
   const activeAgents = (allAgents || STATE.agents).filter(a => a.actif);
   if (!filteredPrevTours || filteredPrevTours.length === 0) {
-    return activeAgents.sort((a, b) => a.matricule - b.matricule);
+    return [...activeAgents].sort((a, b) => b.matricule - a.matricule);
   }
   const lastAppearance = {};
   filteredPrevTours.forEach(tour => {
     (tour.agents || []).forEach(agent => { lastAppearance[agent.nom] = tour.dateISO; });
   });
-  const cycle = [];
+  const cycleWithDate = [];
   const processed = new Set();
   const sortedTours = [...filteredPrevTours].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
   sortedTours.forEach(tour => {
@@ -1320,14 +1328,14 @@ function buildCycleFromFilteredTours(filteredPrevTours, allAgents) {
       const notYetAdded = !processed.has(agent.nom);
       if (isLastAppearance && notYetAdded) {
         const agentData = activeAgents.find(a => a.nom === agent.nom);
-        if (agentData) { cycle.push({ nom: agent.nom, matricule: agentData.matricule }); processed.add(agent.nom); }
+        if (agentData) { cycleWithDate.push({ nom: agent.nom, matricule: agentData.matricule }); processed.add(agent.nom); }
       }
     });
   });
-  activeAgents.sort((a, b) => a.matricule - b.matricule).forEach(a => {
-    if (!processed.has(a.nom)) cycle.push({ nom: a.nom, matricule: a.matricule });
-  });
-  return cycle;
+  const noDateAgents = activeAgents
+    .filter(a => !processed.has(a.nom))
+    .sort((a, b) => b.matricule - a.matricule);
+  return [...noDateAgents, ...cycleWithDate];
 }
 
 function buildCycleFromPrevToursSem(prevTours, allAgents) {
@@ -1567,11 +1575,12 @@ function calcAgentStats() {
       const key = a.nom;
       if (!stats[key]) stats[key] = { nom: a.nom, matricule: 0, total:0, semaine:0, weekend:0, doubles:0, replacements:0, lastPerm:null, nextPerm:null, lastSemaine:null, lastWeekend:null, nextSemaine:null, nextWeekend:null };
       if (a.officiel) {
-        stats[key].total++;
-        if (entry.isWeekend) stats[key].weekend++;
-        else stats[key].semaine++;
-        if (entry.agents.filter(x => x.officiel).length > 1) stats[key].doubles++;
-        if (entry.dateISO <= today) {
+        // Compter uniquement les jours passés (jusqu'à hier)
+        if (entry.dateISO < today) {
+          stats[key].total++;
+          if (entry.isWeekend) stats[key].weekend++;
+          else stats[key].semaine++;
+          if (entry.agents.filter(x => x.officiel).length > 1) stats[key].doubles++;
           if (!stats[key].lastPerm || entry.dateISO > stats[key].lastPerm) stats[key].lastPerm = entry.dateISO;
           if (!entry.isWeekend) {
             if (!stats[key].lastSemaine || entry.dateISO > stats[key].lastSemaine) stats[key].lastSemaine = entry.dateISO;
