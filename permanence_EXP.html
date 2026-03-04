@@ -369,6 +369,14 @@ textarea.form-control{resize:vertical;min-height:70px}
 .page-btn:hover,.page-btn.active{background:var(--primary);color:var(--white);border-color:var(--primary)}
 .progress-bar{height:6px;background:var(--border-color);border-radius:3px;overflow:hidden;margin-top:.4rem}
 .progress-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .5s ease}
+/* ── SECTION TABS ── */
+.section-tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1rem; align-items:center; }
+.section-tab { padding:.4rem 1rem; border-radius:2rem; border:2px solid var(--border-color); background:var(--bg-card); color:var(--text-primary); cursor:pointer; font-size:.85rem; font-weight:600; transition:var(--transition); }
+.section-tab:hover { border-color:var(--primary-light); color:var(--primary); }
+.section-tab.active { background:var(--primary); color:var(--white); border-color:var(--primary); }
+.section-tab-add { padding:.4rem 1rem; border-radius:2rem; border:2px dashed var(--border-color); background:transparent; color:var(--text-secondary); cursor:pointer; font-size:.85rem; transition:var(--transition); }
+.section-tab-add:hover { border-color:var(--primary); color:var(--primary); }
+.section-actions { display:flex; gap:.4rem; margin-bottom:.8rem; }
 </style>
 </head>
 <body>
@@ -540,17 +548,17 @@ function migratePrevTours(arr) {
 }
 
 const AGENTS_INIT = [
-  { id:1,  nom:"Tbeur",    matricule:46881, actif:true, photo:null },
-  { id:2,  nom:"Bennaji",  matricule:51220, actif:true, photo:null },
-  { id:3,  nom:"Brakech",  matricule:58967, actif:true, photo:null },
-  { id:4,  nom:"Filahi",   matricule:59085, actif:true, photo:null },
-  { id:5,  nom:"Baha",     matricule:60822, actif:true, photo:null },
-  { id:6,  nom:"Future",   matricule:66009, actif:true, photo:null },
-  { id:7,  nom:"Amzil",    matricule:66219, actif:true, photo:null },
-  { id:8,  nom:"Founoun",  matricule:69155, actif:true, photo:null },
-  { id:9,  nom:"Bouchait", matricule:75285, actif:true, photo:null },
-  { id:10, nom:"Oudli",    matricule:75466, actif:true, photo:null },
-  { id:11, nom:"Sejni",    matricule:75743, actif:true, photo:null }
+  { id:1,  nom:"Tbeur",    matricule:46881, actif:true, photo:null, sectionId:null },
+  { id:2,  nom:"Bennaji",  matricule:51220, actif:true, photo:null, sectionId:null },
+  { id:3,  nom:"Brakech",  matricule:58967, actif:true, photo:null, sectionId:null },
+  { id:4,  nom:"Filahi",   matricule:59085, actif:true, photo:null, sectionId:null },
+  { id:5,  nom:"Baha",     matricule:60822, actif:true, photo:null, sectionId:null },
+  { id:6,  nom:"Future",   matricule:66009, actif:true, photo:null, sectionId:null },
+  { id:7,  nom:"Amzil",    matricule:66219, actif:true, photo:null, sectionId:null },
+  { id:8,  nom:"Founoun",  matricule:69155, actif:true, photo:null, sectionId:null },
+  { id:9,  nom:"Bouchait", matricule:75285, actif:true, photo:null, sectionId:null },
+  { id:10, nom:"Oudli",    matricule:75466, actif:true, photo:null, sectionId:null },
+  { id:11, nom:"Sejni",    matricule:75743, actif:true, photo:null, sectionId:null }
 ];
 
 const JOURS_FR = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
@@ -693,6 +701,7 @@ let STATE = {
   logs: [],
   connexions: [],
   prevTours: [],
+  sections: [],
   settings: {
     mode: 'SEMTA',
     modeChangedDate: null,
@@ -714,9 +723,15 @@ let _prevToursPage = { start: null, end: null, rows: [] };
 let _planningFilter = { month:'', agent:'', type:'' };
 let _calView = 'list', _calMonth = null, _calWeekStart = null;
 let _reposPage = 1;
+let _activeSection = null; // null = "Tous", or section id
 
 // Helper: generate a new unique ID for an array of objects with .id property
 function nextId(arr) { return Math.max(0, ...arr.map(x => x.id || 0)) + 1; }
+
+// Helper: escape HTML special characters to prevent XSS
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // ════════════════════════════════════════════════════════════
 // PHOTO STORAGE — Séparé du localStorage principal
@@ -770,7 +785,8 @@ function saveState() {
       planning: STATE.planning,
       repos: STATE.repos, echanges: STATE.echanges,
       logs: STATE.logs, connexions: STATE.connexions.slice(-MAX_CONNEXIONS_RETAINED),
-      prevTours: STATE.prevTours, settings: STATE.settings
+      prevTours: STATE.prevTours, settings: STATE.settings,
+      sections: STATE.sections
     }));
     localStorage.setItem(SHARED_KEY, JSON.stringify({
       lang: STATE.lang, theme: STATE.theme, users: STATE.users
@@ -828,6 +844,7 @@ function loadState() {
     STATE.logs = data.logs || [];
     STATE.connexions = data.connexions || [];
     STATE.prevTours = migratePrevTours(data.prevTours || []);
+    STATE.sections = data.sections || [];
     STATE.settings = Object.assign({
       mode:'SEMTA', modeChangedDate:null, alertThresholdDays: DEFAULT_ALERT_THRESHOLD, historyDays:16,
       cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextGenDate:null
@@ -2602,52 +2619,179 @@ function renderCalWeek() {
 // ════════════════════════════════════════════════════════════
 function renderTab4() {
   const ca = document.getElementById('contentArea');
-  const agents = [...STATE.agents].sort((a,b) => a.matricule - b.matricule);
   const stats = calcAgentStats();
 
+  // Ensure _activeSection is valid
+  if (_activeSection !== null && !STATE.sections.find(s => s.id === _activeSection)) {
+    _activeSection = null;
+  }
+
+  // Build section lookup map for O(1) access
+  const sectionMap = {};
+  STATE.sections.forEach(s => { sectionMap[s.id] = s; });
+
+  // Filter agents by active section
+  let agents;
+  if (_activeSection === null) {
+    agents = [...STATE.agents].sort((a,b) => a.matricule - b.matricule);
+  } else {
+    agents = [...STATE.agents].filter(a => a.sectionId === _activeSection).sort((a,b) => a.matricule - b.matricule);
+  }
+
   let html = '<div class="section-title"><span class="icon">👥</span>' + t('tab4') + '</div>';
+
+  // Section tabs
+  html += '<div class="section-tabs">';
+  html += '<button class="section-tab' + (_activeSection === null ? ' active' : '') + '" onclick="switchSectionTab(null)">Tous</button>';
+  STATE.sections.forEach(s => {
+    html += '<button class="section-tab' + (_activeSection === s.id ? ' active' : '') + '" onclick="switchSectionTab(' + s.id + ')">' + escHtml(s.nom) + '</button>';
+  });
+  if (isAdmin()) {
+    html += '<button class="section-tab-add" onclick="openAddSection()">+ Nouvelle section</button>';
+  }
+  html += '</div>';
+
+  // Section actions (rename / delete) — shown only when a specific section is active
+  if (_activeSection !== null && isAdmin()) {
+    const sec = sectionMap[_activeSection];
+    if (sec) {
+      html += '<div class="section-actions">';
+      html += '<button class="btn btn-sm btn-outline" onclick="renameAgentSection(' + sec.id + ')">✏️ Renommer</button>';
+      html += '<button class="btn btn-sm btn-danger" onclick="deleteAgentSection(' + sec.id + ')">🗑️ Supprimer cette section</button>';
+      html += '</div>';
+    }
+  }
+
   if (isAdmin()) {
     html += '<div class="mb-2"><button class="btn btn-primary" onclick="openAddAgent()">+ ' + t('add') + ' Agent</button></div>';
   }
-  html += '<div class="agents-grid">';
 
-  agents.forEach((a, i) => {
-    const s = stats[a.nom] || {};
-    html += '<div class="agent-card' + (a.actif ? '' : ' inactive') + '">';
-    html += '<div style="position:relative;display:inline-block">' + renderAvatar(a, 'lg');
-    html += '<div class="agent-rank">' + (i+1) + '</div></div>';
-    html += '<div class="agent-name">' + a.nom + '</div>';
-    html += '<div class="agent-mat">' + a.matricule + '</div>';
-    html += '<div><span class="badge ' + (a.actif ? 'badge-success' : 'badge-danger') + '">' + (a.actif ? t('active') : t('inactive')) + '</span></div>';
-    html += '<div class="agent-stats">';
-    html += '<div class="agent-stat"><div class="n">' + (s.total||0) + '</div><div class="l">Total</div></div>';
-    html += '<div class="agent-stat"><div class="n">' + (s.semaine||0) + '</div><div class="l">Sem.</div></div>';
-    html += '<div class="agent-stat"><div class="n">' + (s.weekend||0) + '</div><div class="l">WE</div></div>';
-    html += '</div>';
-    html += '<div style="font-size:.72rem;color:var(--text-secondary);margin-top:.3rem;text-align:left;line-height:1.6">';
-    html += '<span style="color:var(--text-secondary)">Dern-S.: </span><strong>' + (s.lastSemaine ? formatDate(s.lastSemaine) : '—') + '</strong><br>';
-    html += '<span style="color:#3498db">Dern-W.: </span><strong>' + (s.lastWeekend ? formatDate(s.lastWeekend) : '—') + '</strong><br>';
-    html += '<span style="color:var(--success)">Proch-S: </span><strong>' + (s.nextSemaine ? formatDate(s.nextSemaine) : '—') + '</strong><br>';
-    html += '<span style="color:#e67e22">Proch-W: </span><strong>' + (s.nextWeekend ? formatDate(s.nextWeekend) : '—') + '</strong>';
-    html += '</div>';
+  if (agents.length === 0 && _activeSection !== null) {
+    html += '<div style="text-align:center;padding:2rem;color:var(--text-secondary)">';
+    html += '<p style="margin-bottom:.8rem">Aucun agent dans cette section. Ajoutez un agent.</p>';
     if (isAdmin()) {
-      html += '<div class="agent-card-actions">';
-      html += '<button class="btn btn-sm btn-outline" onclick="openEditAgent(' + a.id + ')">✏️</button>';
-      html += '<button class="btn btn-sm btn-' + (a.actif ? 'warning' : 'success') + '" onclick="toggleAgentActive(' + a.id + ')">' + (a.actif ? '⏸' : '▶') + '</button>';
-      html += '<button class="btn btn-sm btn-danger" onclick="deleteAgent(' + a.id + ')">🗑️</button>';
-      html += '</div>';
+      html += '<button class="btn btn-primary" onclick="openAddAgent()">+ Ajouter Agent</button>';
     }
     html += '</div>';
-  });
-  html += '</div>';
+  } else {
+    html += '<div class="agents-grid">';
+    agents.forEach((a, i) => {
+      const s = stats[a.nom] || {};
+      html += '<div class="agent-card' + (a.actif ? '' : ' inactive') + '">';
+      html += '<div style="position:relative;display:inline-block">' + renderAvatar(a, 'lg');
+      html += '<div class="agent-rank">' + (i+1) + '</div></div>';
+      html += '<div class="agent-name">' + escHtml(a.nom) + '</div>';
+      html += '<div class="agent-mat">' + a.matricule + '</div>';
+      const secLabel = a.sectionId && sectionMap[a.sectionId] ? sectionMap[a.sectionId].nom : '';
+      if (secLabel) html += '<div style="font-size:.72rem;color:var(--primary);margin:.2rem 0">📂 ' + escHtml(secLabel) + '</div>';
+      html += '<div><span class="badge ' + (a.actif ? 'badge-success' : 'badge-danger') + '">' + (a.actif ? t('active') : t('inactive')) + '</span></div>';
+      html += '<div class="agent-stats">';
+      html += '<div class="agent-stat"><div class="n">' + (s.total||0) + '</div><div class="l">Total</div></div>';
+      html += '<div class="agent-stat"><div class="n">' + (s.semaine||0) + '</div><div class="l">Sem.</div></div>';
+      html += '<div class="agent-stat"><div class="n">' + (s.weekend||0) + '</div><div class="l">WE</div></div>';
+      html += '</div>';
+      html += '<div style="font-size:.72rem;color:var(--text-secondary);margin-top:.3rem;text-align:left;line-height:1.6">';
+      html += '<span style="color:var(--text-secondary)">Dern-S.: </span><strong>' + (s.lastSemaine ? formatDate(s.lastSemaine) : '—') + '</strong><br>';
+      html += '<span style="color:#3498db">Dern-W.: </span><strong>' + (s.lastWeekend ? formatDate(s.lastWeekend) : '—') + '</strong><br>';
+      html += '<span style="color:var(--success)">Proch-S: </span><strong>' + (s.nextSemaine ? formatDate(s.nextSemaine) : '—') + '</strong><br>';
+      html += '<span style="color:#e67e22">Proch-W: </span><strong>' + (s.nextWeekend ? formatDate(s.nextWeekend) : '—') + '</strong>';
+      html += '</div>';
+      if (isAdmin()) {
+        html += '<div class="agent-card-actions">';
+        html += '<button class="btn btn-sm btn-outline" onclick="openEditAgent(' + a.id + ')">✏️</button>';
+        html += '<button class="btn btn-sm btn-' + (a.actif ? 'warning' : 'success') + '" onclick="toggleAgentActive(' + a.id + ')">' + (a.actif ? '⏸' : '▶') + '</button>';
+        html += '<button class="btn btn-sm btn-secondary" onclick="moveAgentSection(' + a.id + ')" title="Changer de section">📂</button>';
+        html += '<button class="btn btn-sm btn-danger" onclick="deleteAgent(' + a.id + ')">🗑️</button>';
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  }
   ca.innerHTML = html;
 }
 
+function switchSectionTab(id) {
+  _activeSection = id;
+  renderTab4();
+}
+
+function openAddSection() {
+  const html = '<div class="form-group"><label>Nom de la section <span class="text-danger">*</span></label><input class="form-control" id="secNom" placeholder="Nom de la section"></div>';
+  openModal('+ Nouvelle section', html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveSection()">Créer</button>');
+}
+
+function saveSection() {
+  const nom = document.getElementById('secNom').value.trim();
+  if (!nom) { showToast('Le nom de la section est obligatoire', 'error'); return; }
+  if (STATE.sections.find(s => s.nom.toLowerCase() === nom.toLowerCase())) {
+    showToast('Une section avec ce nom existe déjà', 'error'); return;
+  }
+  const newSec = { id: Date.now(), nom };
+  STATE.sections.push(newSec);
+  addLog('modification', 'SECTIONS', {}, { action:'add', nom }, 'Création section');
+  saveState();
+  closeModal();
+  showToast('Section "' + nom + '" créée', 'success');
+  _activeSection = newSec.id;
+  renderTab4();
+}
+
+function deleteAgentSection(id) {
+  const sec = STATE.sections.find(s => s.id === id);
+  if (!sec) return;
+  if (!confirm('Supprimer la section "' + sec.nom + '" ? Les agents de cette section deviendront non assignés.')) return;
+  STATE.agents.forEach(a => { if (a.sectionId === id) a.sectionId = null; });
+  STATE.sections = STATE.sections.filter(s => s.id !== id);
+  addLog('modification', 'SECTIONS', { nom: sec.nom }, {}, 'Suppression section');
+  saveState();
+  showToast('Section supprimée', 'success');
+  _activeSection = null;
+  renderTab4();
+}
+
+function renameAgentSection(id) {
+  const sec = STATE.sections.find(s => s.id === id);
+  if (!sec) return;
+  const html = '<div class="form-group"><label>Nouveau nom <span class="text-danger">*</span></label><input class="form-control" id="secNomEdit" value="' + escHtml(sec.nom) + '"></div>';
+  openModal('✏️ Renommer la section', html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveAgentSectionRename(' + id + ')">Enregistrer</button>');
+}
+
+function saveAgentSectionRename(id) {
+  const sec = STATE.sections.find(s => s.id === id);
+  if (!sec) return;
+  const nom = document.getElementById('secNomEdit').value.trim();
+  if (!nom) { showToast('Le nom est obligatoire', 'error'); return; }
+  if (STATE.sections.find(s => s.id !== id && s.nom.toLowerCase() === nom.toLowerCase())) {
+    showToast('Une section avec ce nom existe déjà', 'error'); return;
+  }
+  const old = sec.nom;
+  sec.nom = nom;
+  addLog('modification', 'SECTIONS', { nom: old }, { nom }, 'Renommage section');
+  saveState();
+  closeModal();
+  showToast('Section renommée en "' + nom + '"', 'success');
+  renderTab4();
+}
+
+function _buildSectionSelect(selectedId, selectId) {
+  selectId = selectId || 'agSection';
+  let opts = '<option value="">-- Sans section --</option>';
+  STATE.sections.forEach(s => {
+    opts += '<option value="' + s.id + '"' + (selectedId === s.id ? ' selected' : '') + '>' + escHtml(s.nom) + '</option>';
+  });
+  return '<div class="form-group"><label>Section</label><select class="form-control" id="' + selectId + '">' + opts + '</select></div>';
+}
+
 function openAddAgent() {
+  const preselect = _activeSection;
   const html = '<div class="form-row">' +
     '<div class="form-group"><label>Nom <span class="text-danger">*</span></label><input class="form-control" id="agNom" placeholder="Nom de famille"></div>' +
     '<div class="form-group"><label>Matricule <span class="text-danger">*</span></label><input class="form-control" type="number" id="agMat" placeholder="ex: 80000"></div>' +
     '</div>' +
+    _buildSectionSelect(preselect) +
     '<div class="form-group"><label>' + t('photoPicker') + '</label><input type="file" accept="image/*" id="agPhoto" class="form-control" onchange="previewAgentPhoto(this)"></div>' +
     '<div id="photoPreview" style="margin:.5rem 0"></div>' +
     '<div class="form-group"><label class="form-check"><input type="checkbox" id="agActif" checked> Actif</label></div>';
@@ -2662,6 +2806,7 @@ function openEditAgent(id) {
     '<div class="form-group"><label>Nom</label><input class="form-control" id="agNom" value="' + a.nom + '"></div>' +
     '<div class="form-group"><label>Matricule</label><input class="form-control" type="number" id="agMat" value="' + a.matricule + '"></div>' +
     '</div>' +
+    _buildSectionSelect(a.sectionId || null) +
     '<div class="form-group"><label>Photo</label><input type="file" accept="image/*" id="agPhoto" class="form-control" onchange="previewAgentPhoto(this)"></div>' +
     '<div id="photoPreview" style="margin:.5rem 0">' + (a.photo ? '<img src="'+a.photo+'" style="width:60px;height:60px;border-radius:50%;object-fit:cover">' : '') + '</div>' +
     '<div class="form-group"><label class="form-check"><input type="checkbox" id="agActif"' + (a.actif?' checked':'') + '> Actif</label></div>';
@@ -2687,6 +2832,8 @@ function saveAgent(id) {
   const actif = document.getElementById('agActif').checked;
   const photoInput = document.getElementById('agPhoto');
   const photo = photoInput && photoInput.dataset.photoData ? photoInput.dataset.photoData : null;
+  const secEl = document.getElementById('agSection');
+  const sectionId = secEl && secEl.value ? parseInt(secEl.value) : null;
 
   if (!nom || !mat) { showToast('Nom et matricule obligatoires', 'error'); return; }
 
@@ -2695,13 +2842,13 @@ function saveAgent(id) {
       const newId = nextId(STATE.agents);
       const existing = STATE.agents.find(a => a.nom === nom);
       if (existing) { showToast('Cet agent existe déjà', 'error'); return; }
-      STATE.agents.push({ id: newId, nom, matricule: mat, actif, photo: compressedPhoto || null });
+      STATE.agents.push({ id: newId, nom, matricule: mat, actif, photo: compressedPhoto || null, sectionId });
       addLog('modification', 'AGENTS', {}, { action:'add', nom, matricule:mat }, 'Ajout agent');
     } else {
       const a = STATE.agents.find(x => x.id === id);
       if (!a) return;
       const old = { nom: a.nom, matricule: a.matricule, actif: a.actif };
-      a.nom = nom; a.matricule = mat; a.actif = actif;
+      a.nom = nom; a.matricule = mat; a.actif = actif; a.sectionId = sectionId;
       if (compressedPhoto) a.photo = compressedPhoto;
       addLog('modification', 'AGENTS', old, { nom, matricule:mat, actif }, 'Modification agent');
     }
@@ -2737,6 +2884,27 @@ function deleteAgent(id) {
   addLog('modification', 'AGENTS', { nom: a.nom }, {}, 'Suppression agent');
   saveState();
   showToast('Agent supprimé', 'success');
+  renderTab4();
+}
+
+function moveAgentSection(id) {
+  const a = STATE.agents.find(x => x.id === id);
+  if (!a) return;
+  const html = _buildSectionSelect(a.sectionId || null, 'moveSecSelect');
+  openModal('📂 Changer de section — ' + escHtml(a.nom), html,
+    '<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="doMoveAgentSection(' + id + ')">Déplacer</button>');
+}
+
+function doMoveAgentSection(id) {
+  const a = STATE.agents.find(x => x.id === id);
+  if (!a) return;
+  const el = document.getElementById('moveSecSelect');
+  const sectionId = el && el.value ? parseInt(el.value) : null;
+  a.sectionId = sectionId;
+  addLog('modification', 'AGENTS', {}, { action:'moveSection', nom: a.nom, sectionId }, 'Changement section agent');
+  saveState();
+  closeModal();
+  showToast('Section mise à jour', 'success');
   renderTab4();
 }
 
