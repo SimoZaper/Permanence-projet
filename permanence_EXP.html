@@ -485,6 +485,7 @@ textarea.form-control{resize:vertical;min-height:70px}
 // ════════════════════════════════════════════════════════════
 const STORAGE_KEY = 'perm_exp_v1';
 const APP_KEY = STORAGE_KEY; // alias kept for compatibility
+const PHOTOS_KEY = 'perm_photos_v1';
 // UI constants
 const DAYS_BEFORE_TODAY = 2;
 const DAYS_AHEAD = 18;
@@ -710,18 +711,63 @@ let _reposPage = 1;
 function nextId(arr) { return Math.max(0, ...arr.map(x => x.id || 0)) + 1; }
 
 // ════════════════════════════════════════════════════════════
+// PHOTO STORAGE — Séparé du localStorage principal
+// ════════════════════════════════════════════════════════════
+function compressPhoto(dataURL, callback) {
+  const img = new Image();
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    const maxSize = 120;
+    let w = img.width, h = img.height;
+    if (w > maxSize || h > maxSize) {
+      if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+      else { w = Math.round(w * maxSize / h); h = maxSize; }
+    }
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL('image/jpeg', 0.7));
+  };
+  img.onerror = function() { callback(dataURL); };
+  img.src = dataURL;
+}
+
+function savePhotos() {
+  const photos = {};
+  STATE.agents.forEach(function(a) { if (a.photo) photos[a.id] = a.photo; });
+  try {
+    localStorage.setItem(PHOTOS_KEY, JSON.stringify(photos));
+  } catch(e) {
+    console.warn('Photos storage error:', e.message);
+  }
+}
+
+function loadPhotos() {
+  try {
+    const raw = localStorage.getItem(PHOTOS_KEY);
+    if (!raw) return;
+    const photos = JSON.parse(raw);
+    STATE.agents.forEach(function(a) {
+      if (photos[a.id]) a.photo = photos[a.id];
+    });
+  } catch(e) { console.warn('Photos load error:', e.message); }
+}
+
+// ════════════════════════════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════════════════════════════
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       lang: STATE.lang, theme: STATE.theme,
-      agents: STATE.agents, planning: STATE.planning,
+      agents: STATE.agents.map(function(a) { return Object.assign({}, a, {photo: null}); }),
+      planning: STATE.planning,
       repos: STATE.repos, echanges: STATE.echanges,
       logs: STATE.logs, connexions: STATE.connexions.slice(-MAX_CONNEXIONS_RETAINED),
       prevTours: STATE.prevTours, settings: STATE.settings,
       users: STATE.users
     }));
+    savePhotos();
+    checkStorageUsage();
   } catch(e) {
     // Notify user if storage is unavailable or full
     const msg = (e.name === 'QuotaExceededError') ? 'Stockage local plein. Exportez et nettoyez les données.' : 'Sauvegarde impossible: ' + e.message;
@@ -752,12 +798,26 @@ function loadState() {
       // Migrate any legacy btoa-encoded passwords
       STATE.users = data.users.map(u => ({ ...u, password: migratePassword(u.password) }));
     }
+    loadPhotos();
     return true;
   } catch(e) {
     console.warn('Load error:', e.message);
     showToast('Erreur de chargement des données: ' + e.message + '. Les données par défaut seront utilisées.', 'warning');
     return false;
   }
+}
+
+function checkStorageUsage() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY) || '';
+    const photos = localStorage.getItem(PHOTOS_KEY) || '';
+    const usedKB = Math.round((data.length + photos.length) * 2 / 1024);
+    const limitKB = 5000;
+    if (usedKB > limitKB * 0.80) {
+      showToast('⚠️ Stockage ' + usedKB + ' KB / ~5000 KB — Pensez à exporter une sauvegarde !', 'warning');
+    }
+    return usedKB;
+  } catch(e) { return 0; }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1050,7 +1110,7 @@ function applyForcedReturns() {
       const forcedIdx = cycleAgents.findIndex(a => a.nom === agentObj.nom);
       const nextIdx = forcedIdx >= 0 ? (forcedIdx + 1) % cycleAgents.length : 0;
       const before = STATE.planning.filter(e => e.dateISO < nextDay);
-      const future = generatePlanning(nextDay, 365, {
+      const future = generatePlanning(nextDay, 31, {
         mode,
         cycleIndex: nextIdx,
         cycleIndexSemaine: nextIdx,
@@ -1447,7 +1507,7 @@ function buildFullPlanning(prevToursRows, agents, mode) {
   }
 
   // Generate 1 year from nextStartISO
-  const futureEntries = generatePlanning(nextStartISO, 365, {
+  const futureEntries = generatePlanning(nextStartISO, 31, {
     mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
   }, cycleAgents, cycleAgentsWE);
 
@@ -1513,7 +1573,7 @@ function rebuildFrom(fromISO) {
     console.log('[Cycle] rebuildFrom ' + fromISO + ': dernier=' + lastAgentNom + ', prochain=' + (nextAgent ? nextAgent.nom : '?') + ' (index ' + cycleIndex + ')');
   }
 
-  const future = generatePlanning(fromISO, 365, {
+  const future = generatePlanning(fromISO, 31, {
     mode, cycleIndex, cycleIndexSemaine, cycleIndexWeekend
   }, cycleAgents, cycleAgentsWE);
 
@@ -2596,24 +2656,31 @@ function saveAgent(id) {
 
   if (!nom || !mat) { showToast('Nom et matricule obligatoires', 'error'); return; }
 
-  if (id === 0) {
-    const newId = nextId(STATE.agents);
-    const existing = STATE.agents.find(a => a.nom === nom);
-    if (existing) { showToast('Cet agent existe déjà', 'error'); return; }
-    STATE.agents.push({ id: newId, nom, matricule: mat, actif, photo: photo || null });
-    addLog('modification', 'AGENTS', {}, { action:'add', nom, matricule:mat }, 'Ajout agent');
-  } else {
-    const a = STATE.agents.find(x => x.id === id);
-    if (!a) return;
-    const old = { nom: a.nom, matricule: a.matricule, actif: a.actif };
-    a.nom = nom; a.matricule = mat; a.actif = actif;
-    if (photo) a.photo = photo;
-    addLog('modification', 'AGENTS', old, { nom, matricule:mat, actif }, 'Modification agent');
+  function doFinalizeSaveAgent(compressedPhoto) {
+    if (id === 0) {
+      const newId = nextId(STATE.agents);
+      const existing = STATE.agents.find(a => a.nom === nom);
+      if (existing) { showToast('Cet agent existe déjà', 'error'); return; }
+      STATE.agents.push({ id: newId, nom, matricule: mat, actif, photo: compressedPhoto || null });
+      addLog('modification', 'AGENTS', {}, { action:'add', nom, matricule:mat }, 'Ajout agent');
+    } else {
+      const a = STATE.agents.find(x => x.id === id);
+      if (!a) return;
+      const old = { nom: a.nom, matricule: a.matricule, actif: a.actif };
+      a.nom = nom; a.matricule = mat; a.actif = actif;
+      if (compressedPhoto) a.photo = compressedPhoto;
+      addLog('modification', 'AGENTS', old, { nom, matricule:mat, actif }, 'Modification agent');
+    }
+    saveState();
+    closeModal();
+    showToast('Agent enregistré', 'success');
+    renderTab4();
   }
-  saveState();
-  closeModal();
-  showToast('Agent enregistré', 'success');
-  renderTab4();
+  if (photo) {
+    compressPhoto(photo, function(compressed) { doFinalizeSaveAgent(compressed); });
+  } else {
+    doFinalizeSaveAgent(null);
+  }
 }
 
 function toggleAgentActive(id) {
@@ -3205,6 +3272,8 @@ function renderTab9() {
 
   // Backup
   html += '<div class="settings-section"><h3>' + t('backup') + ' & ' + t('restore') + '</h3>';
+  const usedKB = checkStorageUsage ? checkStorageUsage() : 0;
+  html += '<div class="alert-item info" style="margin-bottom:.8rem">💾 Stockage utilisé : <strong>' + usedKB + ' KB / ~5000 KB</strong></div>';
   html += '<div class="flex flex-gap flex-wrap">';
   html += '<button class="btn btn-outline" onclick="exportJSON()">💾 ' + t('saveJSON') + '</button>';
   html += '<button class="btn btn-outline" onclick="triggerImportJSON()">📂 ' + t('importJSON') + '</button>';
