@@ -821,7 +821,7 @@ function loadState() {
     const raw = localStorage.getItem(getSectionStorageKey(CURRENT_SECTION_ID));
     if (!raw) return !!sharedRaw;
     const data = JSON.parse(raw);
-    STATE.agents = data.agents && data.agents.length ? data.agents : JSON.parse(JSON.stringify(AGENTS_INIT));
+    STATE.agents = data.agents ? data.agents : [];
     STATE.planning = data.planning || [];
     STATE.repos = data.repos || [];
     STATE.echanges = data.echanges || [];
@@ -3832,7 +3832,7 @@ document.addEventListener('keydown', e => {
 // ── SECTION MANAGEMENT ──
 function makeDefaultSectionState() {
   return {
-    agents: JSON.parse(JSON.stringify(AGENTS_INIT)),
+    agents: [],
     planning: [], repos: [], echanges: [], logs: [], connexions: [], prevTours: [],
     settings: { mode:'SEMTA', modeChangedDate:null, alertThresholdDays:DEFAULT_ALERT_THRESHOLD, historyDays:16, cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextGenDate:null }
   };
