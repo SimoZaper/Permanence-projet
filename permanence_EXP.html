@@ -768,11 +768,31 @@ function saveState() {
     }));
     savePhotos();
     checkStorageUsage();
+    autoArchiveToStorage();
   } catch(e) {
     // Notify user if storage is unavailable or full
     const msg = (e.name === 'QuotaExceededError') ? 'Stockage local plein. Exportez et nettoyez les données.' : 'Sauvegarde impossible: ' + e.message;
     console.warn('Storage error:', e);
     showToast(msg, 'warning');
+  }
+}
+
+function autoArchiveToStorage() {
+  try {
+    const today = todayISO();
+    const archive = {
+      exportDate: today,
+      exportDateTime: formatDateTime(new Date()),
+      exportedBy: STATE.currentUser ? STATE.currentUser.login : 'system',
+      totalEntries: STATE.planning.length,
+      prevEntries: STATE.planning.filter(e => e.isPrev).length,
+      generatedEntries: STATE.planning.filter(e => !e.isPrev).length,
+      agents: STATE.agents.filter(a => a.actif).map(a => ({ nom: a.nom, matricule: a.matricule })),
+      planning: STATE.planning.slice().sort((a,b) => a.dateISO.localeCompare(b.dateISO))
+    };
+    localStorage.setItem('perm_exp_archive_v1', JSON.stringify(archive));
+  } catch(e) {
+    console.warn('Archive auto error:', e.message);
   }
 }
 
@@ -3002,8 +3022,13 @@ function renderTab7() {
   const stats = calcAgentStats();
   const agents = getActiveSorted();
   const today = todayISO();
-  const total = STATE.planning.length;
-  const covered = STATE.planning.filter(e => e.agents.length > 0).length;
+  // Fenêtre : tout depuis le début jusqu'à 12 mois après aujourd'hui
+  const windowEnd = addDays(today, 365);
+  const windowEntries = STATE.planning.filter(e => e.dateISO <= windowEnd);
+  const prevCount = windowEntries.filter(e => e.isPrev).length;
+  const genCount = windowEntries.filter(e => !e.isPrev).length;
+  const total = windowEntries.length;
+  const covered = windowEntries.filter(e => e.agents.length > 0).length;
   const pct = total ? Math.round(covered / total * 100) : 0;
   const totals = agents.map(a => stats[a.nom] ? stats[a.nom].total : 0);
   const maxT = Math.max(...totals, 1);
@@ -3014,7 +3039,7 @@ function renderTab7() {
 
   // Global stats
   html += '<div class="stats-row">';
-  html += '<div class="stat-card"><div class="stat-icon blue">📅</div><div class="stat-info"><div class="n">' + total + '</div><div class="l">' + t('daysPlanned') + '</div></div></div>';
+  html += '<div class="stat-card"><div class="stat-icon blue">📅</div><div class="stat-info"><div class="n">' + total + '</div><div class="l">' + t('daysPlanned') + '</div><div class="stat-sub" style="font-size:.72rem;color:var(--text-secondary);margin-top:2px">📋 ' + prevCount + ' préc. · 🗓️ ' + genCount + ' gén.</div></div></div>';
   html += '<div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="n">' + pct + '%</div><div class="l">' + t('coverage') + '</div></div></div>';
   html += '<div class="stat-card"><div class="stat-icon orange">⚖️</div><div class="stat-info"><div class="n">' + equity + '%</div><div class="l">' + t('equityRate') + '</div></div></div>';
   html += '<div class="stat-card"><div class="stat-icon purple">👥</div><div class="stat-info"><div class="n">' + getAvailableToday().length + '</div><div class="l">' + t('activeAgents') + '</div></div></div>';
@@ -3182,6 +3207,7 @@ function renderAnnualArchive() {
   html += '</select>';
   html += '<button class="btn btn-sm btn-success" onclick="exportYearExcel()">📊 Excel</button>';
   html += '<button class="btn btn-sm btn-primary" onclick="exportYearPDF()">📄 PDF</button>';
+  html += '<button class="btn btn-sm btn-info" onclick="downloadArchiveJSON()">💾 Archive JSON</button>';
   html += '</div>';
   html += '<div id="annualPlanContent">' + renderAnnualPlan(selectedYear) + '</div>';
   return html;
@@ -3535,6 +3561,20 @@ function exportLogsExcel() {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Journal');
   XLSX.writeFile(wb, 'journal_modifications_' + todayISO() + '.xlsx');
   showToast('Journal exporté', 'success');
+}
+
+function downloadArchiveJSON() {
+  const raw = localStorage.getItem('perm_exp_archive_v1');
+  if (!raw) { showToast('Aucune archive disponible', 'warning'); return; }
+  const archive = JSON.parse(raw);
+  const blob = new Blob([JSON.stringify(archive, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'planning_archive_' + archive.exportDate + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Archive téléchargée', 'success');
 }
 
 function exportYearExcel() {
