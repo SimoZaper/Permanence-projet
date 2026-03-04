@@ -106,6 +106,8 @@ input,select,textarea{font-family:inherit}
 .user-avatar{width:28px;height:28px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:.85rem}
 .header-icon-btn{width:34px;height:34px;border:none;background:rgba(255,255,255,.1);color:var(--white);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:var(--transition)}
 .header-icon-btn:hover{background:rgba(255,255,255,.25)}
+.section-selector select{background:var(--primary-light);color:var(--white);border:1px solid rgba(255,255,255,0.3);border-radius:var(--radius);padding:.3rem .6rem;font-size:.85rem;font-weight:600;cursor:pointer}
+.section-selector select:focus{outline:none}
 .app-navbar{background:var(--bg-card);border-bottom:2px solid var(--border-color);display:flex;overflow-x:auto;position:sticky;top:56px;z-index:99;box-shadow:var(--shadow)}
 .nav-tab{padding:.7rem 1.1rem;border:none;background:transparent;color:var(--text-secondary);font-size:.83rem;font-weight:600;cursor:pointer;transition:var(--transition);white-space:nowrap;border-bottom:3px solid transparent;display:flex;align-items:center;gap:.35rem}
 .nav-tab:hover{color:var(--primary);background:var(--light)}
@@ -405,6 +407,9 @@ textarea.form-control{resize:vertical;min-height:70px}
     </div>
     <div class="header-spacer"></div>
     <div class="header-controls">
+      <div class="section-selector">
+        <select id="sectionSelect" onchange="switchSection(this.value)" title="Changer de section" aria-label="Sélectionner une section"></select>
+      </div>
       <div class="lang-toggle">
         <button class="lang-btn active" id="btnFR" onclick="setLang('fr')">FR</button>
         <button class="lang-btn" id="btnAR" onclick="setLang('ar')">ع</button>
@@ -486,6 +491,9 @@ textarea.form-control{resize:vertical;min-height:70px}
 const STORAGE_KEY = 'perm_exp_v1';
 const APP_KEY = STORAGE_KEY; // alias kept for compatibility
 const PHOTOS_KEY = 'perm_photos_v1';
+const SHARED_KEY = 'perm_shared';
+let CURRENT_SECTION_ID = 'EXP';
+function getSectionStorageKey(sectionId) { return 'perm_data_' + sectionId; }
 // UI constants
 const DAYS_BEFORE_TODAY = 2;
 const DAYS_AHEAD = 18;
@@ -757,14 +765,15 @@ function loadPhotos() {
 // ════════════════════════════════════════════════════════════
 function saveState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      lang: STATE.lang, theme: STATE.theme,
+    localStorage.setItem(getSectionStorageKey(CURRENT_SECTION_ID), JSON.stringify({
       agents: STATE.agents.map(function(a) { return Object.assign({}, a, {photo: null}); }),
       planning: STATE.planning,
       repos: STATE.repos, echanges: STATE.echanges,
       logs: STATE.logs, connexions: STATE.connexions.slice(-MAX_CONNEXIONS_RETAINED),
-      prevTours: STATE.prevTours, settings: STATE.settings,
-      users: STATE.users
+      prevTours: STATE.prevTours, settings: STATE.settings
+    }));
+    localStorage.setItem(SHARED_KEY, JSON.stringify({
+      lang: STATE.lang, theme: STATE.theme, users: STATE.users
     }));
     savePhotos();
     checkStorageUsage();
@@ -790,7 +799,7 @@ function autoArchiveToStorage() {
       agents: STATE.agents.filter(a => a.actif).map(a => ({ nom: a.nom, matricule: a.matricule })),
       planning: STATE.planning.slice().sort((a,b) => a.dateISO.localeCompare(b.dateISO))
     };
-    localStorage.setItem('perm_exp_archive_v1', JSON.stringify(archive));
+    localStorage.setItem('perm_archive_' + CURRENT_SECTION_ID, JSON.stringify(archive));
   } catch(e) {
     console.warn('Archive auto error:', e.message);
   }
@@ -798,12 +807,21 @@ function autoArchiveToStorage() {
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
+    // Load shared data (lang, theme, users)
+    const sharedRaw = localStorage.getItem(SHARED_KEY);
+    if (sharedRaw) {
+      const shared = JSON.parse(sharedRaw);
+      STATE.lang = shared.lang || 'fr';
+      STATE.theme = shared.theme || 'light';
+      if (shared.users && shared.users.length) {
+        STATE.users = shared.users.map(u => ({ ...u, password: migratePassword(u.password) }));
+      }
+    }
+    // Load section-specific data
+    const raw = localStorage.getItem(getSectionStorageKey(CURRENT_SECTION_ID));
+    if (!raw) return !!sharedRaw;
     const data = JSON.parse(raw);
-    STATE.lang = data.lang || 'fr';
-    STATE.theme = data.theme || 'light';
-    STATE.agents = data.agents && data.agents.length ? data.agents : JSON.parse(JSON.stringify(AGENTS_INIT));
+    STATE.agents = data.agents ? data.agents : [];
     STATE.planning = data.planning || [];
     STATE.repos = data.repos || [];
     STATE.echanges = data.echanges || [];
@@ -814,10 +832,6 @@ function loadState() {
       mode:'SEMTA', modeChangedDate:null, alertThresholdDays: DEFAULT_ALERT_THRESHOLD, historyDays:16,
       cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextGenDate:null
     }, data.settings || {});
-    if (data.users && data.users.length) {
-      // Migrate any legacy btoa-encoded passwords
-      STATE.users = data.users.map(u => ({ ...u, password: migratePassword(u.password) }));
-    }
     loadPhotos();
     return true;
   } catch(e) {
@@ -829,7 +843,7 @@ function loadState() {
 
 function checkStorageUsage() {
   try {
-    const data = localStorage.getItem(STORAGE_KEY) || '';
+    const data = localStorage.getItem(getSectionStorageKey(CURRENT_SECTION_ID)) || '';
     const photos = localStorage.getItem(PHOTOS_KEY) || '';
     const usedKB = Math.round((data.length + photos.length) * 2 / 1024);
     const limitKB = 5000;
@@ -3296,6 +3310,29 @@ function renderTab9() {
     html += '</div>';
   }
 
+  // Sections management (admin only)
+  if (isAdmin()) {
+    const sections = getSectionsIndex();
+    html += '<div class="settings-section"><h3>🗂️ Gestion des sections</h3>';
+    html += '<table class="users-table"><thead><tr><th>Icône</th><th>Nom</th><th>Actions</th></tr></thead><tbody>';
+    sections.forEach(s => {
+      const isCurrent = s.id === CURRENT_SECTION_ID;
+      const canDelete = !isCurrent && sections.length > 1;
+      html += '<tr><td>' + s.icone + '</td><td>' + s.nom + (isCurrent ? ' <span class="badge badge-success">Active</span>' : '') + '</td>';
+      html += '<td><div class="table-actions">';
+      html += '<button class="btn btn-sm btn-outline" onclick="renameSection(\'' + s.id + '\')">✏️ Renommer</button>';
+      html += '<button class="btn btn-sm btn-danger" onclick="deleteSection(\'' + s.id + '\')" ' + (!canDelete ? 'disabled title="Impossible de supprimer"' : '') + '>🗑️ Supprimer</button>';
+      html += '</div></td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<h3 style="margin-top:1rem">➕ Ajouter une section</h3>';
+    html += '<div class="flex flex-gap items-center">';
+    html += '<input type="text" id="newSectionIcon" placeholder="🏢" maxlength="4" style="width:50px;text-align:center;padding:.4rem;border:1.5px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary)">';
+    html += '<input type="text" id="newSectionNom" placeholder="Nom de la section" maxlength="30" class="form-control" style="max-width:200px">';
+    html += '<button class="btn btn-primary" onclick="addSection()">Ajouter</button>';
+    html += '</div></div>';
+  }
+
   // Backup
   html += '<div class="settings-section"><h3>' + t('backup') + ' & ' + t('restore') + '</h3>';
   const usedKB = checkStorageUsage ? checkStorageUsage() : 0;
@@ -3396,7 +3433,7 @@ function deleteUser(id) {
 function confirmReset() {
   if (!confirm(t('resetConfirm'))) return;
   if (!confirm(t('resetConfirm2'))) return;
-  localStorage.removeItem(APP_KEY);
+  localStorage.removeItem(getSectionStorageKey(CURRENT_SECTION_ID));
   showToast('Données réinitialisées. Rechargement...', 'warning');
   setTimeout(() => location.reload(), 1500);
 }
@@ -3791,18 +3828,170 @@ document.addEventListener('keydown', e => {
 // ════════════════════════════════════════════════════════════
 // INITIALIZATION
 // ════════════════════════════════════════════════════════════
+
+// ── SECTION MANAGEMENT ──
+function makeDefaultSectionState() {
+  return {
+    agents: [],
+    planning: [], repos: [], echanges: [], logs: [], connexions: [], prevTours: [],
+    settings: { mode:'SEMTA', modeChangedDate:null, alertThresholdDays:DEFAULT_ALERT_THRESHOLD, historyDays:16, cycleIndex:0, cycleIndexSemaine:0, cycleIndexWeekend:0, nextGenDate:null }
+  };
+}
+
+function getSectionsIndex() {
+  try {
+    const raw = localStorage.getItem('perm_sections_index');
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return [{ id: 'EXP', nom: 'EXP', icone: '🏢', createdAt: todayISO() }];
+}
+
+function saveSectionsIndex(sections) {
+  localStorage.setItem('perm_sections_index', JSON.stringify(sections));
+}
+
+function updateSectionTexts(sectionNom) {
+  I18N.fr.appSubTitle = 'Permanence de ' + sectionNom;
+  I18N.fr.footer = 'Permanence de la section ' + sectionNom + ' — v1.0';
+  I18N.ar.appSubTitle = 'ديمومة قسم ' + sectionNom;
+  I18N.ar.footer = 'ديمومة قسم ' + sectionNom + ' — v1.0';
+  document.title = 'Tour de Permanence — ' + sectionNom;
+}
+
+function renderSectionSelect() {
+  const sel = document.getElementById('sectionSelect');
+  if (!sel) return;
+  const sections = getSectionsIndex();
+  sel.innerHTML = sections.map(s =>
+    '<option value="' + s.id + '"' + (s.id === CURRENT_SECTION_ID ? ' selected' : '') + '>' + s.icone + ' ' + s.nom + '</option>'
+  ).join('');
+}
+
+function switchSection(sectionId) {
+  if (sectionId === CURRENT_SECTION_ID) return;
+  saveState();
+  CURRENT_SECTION_ID = sectionId;
+  const loaded = loadState();
+  if (!loaded) {
+    const ds = makeDefaultSectionState();
+    STATE.agents = ds.agents; STATE.planning = ds.planning; STATE.repos = ds.repos;
+    STATE.echanges = ds.echanges; STATE.logs = ds.logs; STATE.connexions = ds.connexions;
+    STATE.prevTours = ds.prevTours; STATE.settings = ds.settings;
+    saveState();
+  }
+  const sections = getSectionsIndex();
+  const curr = sections.find(s => s.id === sectionId);
+  if (curr) updateSectionTexts(curr.nom);
+  renderSectionSelect();
+  applyLang();
+  renderCurrentTab();
+  showToast('Section : ' + (curr ? curr.icone + ' ' + curr.nom : sectionId), 'info');
+}
+
+function initSections() {
+  const indexRaw = localStorage.getItem('perm_sections_index');
+  if (!indexRaw) {
+    // First time — check for legacy data
+    const sections = [{ id: 'EXP', nom: 'EXP', icone: '🏢', createdAt: todayISO() }];
+    saveSectionsIndex(sections);
+    const legacyRaw = localStorage.getItem(STORAGE_KEY);
+    if (legacyRaw) {
+      try {
+        const legacyData = JSON.parse(legacyRaw);
+        // Migrate section-specific data
+        localStorage.setItem(getSectionStorageKey('EXP'), JSON.stringify({
+          agents: legacyData.agents,
+          planning: legacyData.planning,
+          repos: legacyData.repos,
+          echanges: legacyData.echanges,
+          logs: legacyData.logs,
+          connexions: legacyData.connexions,
+          prevTours: legacyData.prevTours,
+          settings: legacyData.settings
+        }));
+        // Migrate shared data
+        localStorage.setItem(SHARED_KEY, JSON.stringify({
+          lang: legacyData.lang,
+          theme: legacyData.theme,
+          users: legacyData.users
+        }));
+      } catch(e) { console.warn('Migration error:', e.message); }
+    }
+  }
+  const sections = getSectionsIndex();
+  CURRENT_SECTION_ID = sections.length ? sections[0].id : 'EXP';
+}
+
+function addSection() {
+  const icon = (document.getElementById('newSectionIcon').value.trim() || '🏢');
+  const nom = document.getElementById('newSectionNom').value.trim();
+  if (!nom) { showToast('Nom de section requis', 'error'); return; }
+  const sections = getSectionsIndex();
+  if (sections.some(s => s.nom.toLowerCase() === nom.toLowerCase())) {
+    showToast('Une section avec ce nom existe déjà', 'error'); return;
+  }
+  const slug = nom.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 8);
+  const id = (slug || 'SECT') + '_' + Date.now().toString(36).slice(-4).toUpperCase();
+  sections.push({ id, nom, icone: icon, createdAt: todayISO() });
+  saveSectionsIndex(sections);
+  localStorage.setItem(getSectionStorageKey(id), JSON.stringify(makeDefaultSectionState()));
+  renderSectionSelect();
+  document.getElementById('newSectionIcon').value = '';
+  document.getElementById('newSectionNom').value = '';
+  showToast('Section "' + nom + '" créée', 'success');
+  renderTab9();
+}
+
+function renameSection(sectionId) {
+  const sections = getSectionsIndex();
+  const s = sections.find(x => x.id === sectionId);
+  if (!s) return;
+  const newNom = prompt('Nouveau nom de section :', s.nom);
+  if (!newNom || !newNom.trim()) return;
+  const newIcon = prompt('Nouvelle icône :', s.icone);
+  s.nom = newNom.trim();
+  if (newIcon !== null && newIcon.trim()) s.icone = newIcon.trim();
+  saveSectionsIndex(sections);
+  if (sectionId === CURRENT_SECTION_ID) {
+    updateSectionTexts(s.nom);
+    applyLang();
+  }
+  renderSectionSelect();
+  renderTab9();
+  showToast('Section renommée en "' + s.nom + '"', 'success');
+}
+
+function deleteSection(sectionId) {
+  const sections = getSectionsIndex();
+  if (sections.length <= 1) { showToast('Impossible de supprimer la dernière section', 'error'); return; }
+  if (sectionId === CURRENT_SECTION_ID) { showToast('Impossible de supprimer la section active', 'error'); return; }
+  const s = sections.find(x => x.id === sectionId);
+  if (!confirm('Supprimer la section "' + (s ? s.nom : sectionId) + '" et toutes ses données ?')) return;
+  localStorage.removeItem(getSectionStorageKey(sectionId));
+  saveSectionsIndex(sections.filter(x => x.id !== sectionId));
+  renderSectionSelect();
+  renderTab9();
+  showToast('Section supprimée', 'success');
+}
+
 function init() {
+  initSections();
   const loaded = loadState();
   if (!loaded) {
     // First run: init with defaults
-    STATE.agents = JSON.parse(JSON.stringify(AGENTS_INIT));
+    const ds = makeDefaultSectionState();
+    STATE.agents = ds.agents;
     saveState();
   } else {
     syncPastPlanningToPrevTours();
     saveState();
   }
+  const sections = getSectionsIndex();
+  const curr = sections.find(s => s.id === CURRENT_SECTION_ID);
+  if (curr) updateSectionTexts(curr.nom);
   applyTheme();
   applyLang();
+  renderSectionSelect();
 
   // Enter key on login
   document.getElementById('loginPass').addEventListener('keydown', e => {
