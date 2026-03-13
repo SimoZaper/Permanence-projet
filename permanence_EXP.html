@@ -1155,6 +1155,21 @@ function applyForcedReturns() {
   });
 }
 
+// Réapplique les échanges enregistrés sur le planning reconstruit
+function reapplyEchanges() {
+  if (!STATE.echanges || !STATE.echanges.length) return;
+  STATE.echanges.forEach(e => {
+    const entry = getPlanEntry(e.date);
+    if (!entry) return;
+    entry.agents.forEach(a => {
+      if (a.officiel && !a.remplacePar) {
+        a.remplacePar = e.remplacant;
+        a.motifEchange = e.motif;
+      }
+    });
+  });
+}
+
 // Auto-alimente STATE.prevTours avec tous les jours passés du planning
 // qui ne sont pas encore enregistrés dans prevTours.
 function syncPastPlanningToPrevTours() {
@@ -1613,6 +1628,7 @@ function rebuildFrom(fromISO) {
 
   STATE.planning = [...before, ...future];
   applyForcedReturns();
+  reapplyEchanges();
   syncPastPlanningToPrevTours();
   STATE.settings.nextGenDate = fromISO;
   saveState();
@@ -2347,6 +2363,7 @@ function validateAndGenerate() {
   const fullPlan = buildFullPlanning(prevToursData, STATE.agents, STATE.settings.mode);
   STATE.planning = fullPlan;
   applyForcedReturns();
+  reapplyEchanges();
   syncPastPlanningToPrevTours();
 
   // Update cycle indices in settings
